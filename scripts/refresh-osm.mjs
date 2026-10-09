@@ -13,9 +13,10 @@ import { fileURLToPath } from "node:url";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const outputPath = join(root, "public", "data", "osm-places.json");
 const endpoints = [
-  "https://overpass.private.coffee/api/interpreter",
-  "https://overpass-api.de/api/interpreter",
+  // Esta instancia respondió correctamente para Valencia en la primera prueba de CI.
   "https://overpass.openstreetmap.fr/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
 ];
 // Valencia ciudad + área metropolitana próxima; el producto empieza aquí.
 const coverage = { south: 39.28, west: -0.62, north: 39.67, east: -0.20 };
