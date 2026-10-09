@@ -1,5 +1,5 @@
-# Deploy frontend and an OSM snapshot with data served from Firebase Hosting.
-# The website NEVER calls Overpass directly from the browser.
+# Publica exclusivamente los archivos versionados en el repositorio.
+# El catálogo de OpenStreetMap se actualiza en refresh-osm.yml.
 name: Deploy to Firebase Hosting on merge
 
 on:
@@ -7,9 +7,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-  schedule:
-    # Refresh OpenStreetMap data every Monday at 04:20 UTC.
-    - cron: "20 4 * * 1"
 
 concurrency:
   group: firebase-hosting-live
@@ -18,15 +15,21 @@ concurrency:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Generate local park and cafe dataset (server side)
-        run: node scripts/refresh-osm.mjs
-      - name: Deploy frontend and dataset to Firebase Hosting
+      - name: Verify committed OSM catalogue
+        run: |
+          node -e '
+          const fs = require("fs");
+          const x = JSON.parse(fs.readFileSync("public/data/osm-places.json", "utf8"));
+          if (x.schemaVersion !== 1 || x.license !== "ODbL" ||
+              !x.coverage || !Array.isArray(x.elements) || x.elements.length < 200) {
+            throw new Error("Falta el catálogo OSM válido en GitHub");
+          }
+          console.log("Publicando", x.elements.length, "ubicaciones desde el repositorio");
+          '
+      - name: Deploy versioned frontend to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
