@@ -1,0 +1,11 @@
+# Never commit credentials or generated Firebase caches.
+node_modules/
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+.env
+.env.*
+*.service-account.json
+*service-account*.json
+*firebase-adminsdk*.json
+*.pem
