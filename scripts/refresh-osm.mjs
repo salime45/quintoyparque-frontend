@@ -6,7 +6,7 @@
  * Datos: © OpenStreetMap contributors, licencia ODbL.
  * https://www.openstreetmap.org/copyright
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -93,16 +93,30 @@ function validateSnapshot(snapshot) {
   console.log("Dataset listo: " + parks + " parques / " + venues + " cafeterías y restaurantes");
   return snapshot;
 }
+async function readCommittedSnapshot() {
+  try {
+    return validateSnapshot(JSON.parse(await readFile(outputPath, "utf8")));
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw Error("El snapshot versionado es inválido: " + error.message);
+  }
+}
 async function existingSnapshot() {
   const url = "https://quintoyparque.web.app/data/osm-places.json";
-  console.warn("Usando última copia publicada, si existe: " + url);
+  console.warn("Primera importación: recuperando el catálogo publicado en Firebase.");
   const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!response.ok) throw Error("No hay copia publicada (" + response.status + ")");
-  const snapshot = validateSnapshot(await response.json());
-  snapshot.usedPublishedFallback = true;
-  return snapshot;
+  return validateSnapshot(await response.json());
+}
+function compareElements(snapshot) {
+  return JSON.stringify({
+    schemaVersion: snapshot.schemaVersion,
+    coverage: snapshot.coverage,
+    elements: snapshot.elements,
+  });
 }
 async function main() {
+  const previous = await readCommittedSnapshot();
   let snapshot;
   try {
     const items = [];
@@ -122,13 +136,29 @@ async function main() {
       source: "OpenStreetMap contributors / Overpass API",
       license: "ODbL",
       coverage,
-      elements: [...unique.values()],
+      elements: [...unique.values()].sort((a, b) => a.id.localeCompare(b.id)),
     });
+    // Evitar publicar un snapshot incompleto cuando una instancia de Overpass
+    // responde con datos parcialmente truncados.
+    if (previous) {
+      const count = (data, condition) => data.elements.filter(condition).length;
+      const isPark = (item) => item.tags?.leisure === "playground";
+      const isVenue = (item) => ["cafe","bar","restaurant"].includes(item.tags?.amenity);
+      if (count(snapshot, isPark) < count(previous, isPark) * 0.75 ||
+          count(snapshot, isVenue) < count(previous, isVenue) * 0.75) {
+        throw Error("Caída sospechosa en la cobertura; se conserva el snapshot anterior");
+      }
+    }
   } catch (err) {
     console.warn("No se pudo actualizar Overpass: " + err.message);
-    // Si falla la API, conservar la última copia del sitio publicado.
-    // Nunca desplegar un dataset vacío por un error transitorio.
-    snapshot = await existingSnapshot();
+    // Si falla Overpass conservamos los datos del repo.
+    // Solo la primera importación usa la copia ya publicada en Firebase.
+    snapshot = previous || await existingSnapshot();
+  }
+  snapshot.elements.sort((a, b) => a.id.localeCompare(b.id));
+  if (previous && compareElements(snapshot) === compareElements(previous)) {
+    console.log("Los datos no han cambiado. No se genera commit.");
+    return;
   }
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, JSON.stringify(snapshot));
