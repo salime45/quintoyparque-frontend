@@ -1,18 +1,33 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quinto y Parque · Terrazas junto a parques infantiles</title>
-<meta name="description" content="Encuentra parques infantiles con cafeterías y terrazas cerca, en Valencia. Comparte sitios y opiniones de familias.">
+<meta name="description" content="Descubre terrazas y cafeterías junto a parques infantiles en Valencia. Encuentra tu próximo Quinto y Parque.">
+<meta name="theme-color" content="#3D0A67">
+<link rel="icon" type="image/svg+xml" href="./brand/icon.svg">
+<link rel="preload" as="image" href="./brand/logo.svg">
+<link rel="stylesheet" href="./brand/theme.css">
 <link rel="preconnect" href="https://unpkg.com"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#20302a;background:#f5f6ef}*{box-sizing:border-box}body{margin:0}header{background:#194b3c;color:#fff;padding:17px 24px;display:flex;justify-content:space-between;align-items:center;gap:12px}h1{font-size:1.45rem;margin:0}header p{margin:5px 0 0;font-size:.85rem;color:#d4e5d9}main{display:grid;grid-template-columns:355px minmax(0,1fr);height:calc(100dvh - 90px)}aside{overflow:auto;padding:18px;background:white;border-right:1px solid #e4e8e2}#map{height:100%;min-height:350px}.controls{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}button,input,textarea,select{font:inherit}button{cursor:pointer;background:#194b3c;color:white;border:0;border-radius:10px;padding:10px 12px}button.secondary{background:#e9eee8;color:#194b3c}button:disabled{opacity:.5;cursor:not-allowed}input,textarea{width:100%;padding:10px;border:1px solid #bcc8bf;border-radius:8px;margin:6px 0 12px}label{display:block;font-size:.9rem;font-weight:650}textarea{min-height:85px}#results article{border:1px solid #e0e8df;border-radius:12px;padding:12px;margin-bottom:12px;background:#fff}#results article h3{margin:0 0 6px;font-size:1rem}#results article p{font-size:.9rem;margin:4px 0 8px;color:#526159}.small{font-size:.83rem;color:#5f6e65}.tag{display:inline-block;background:#edf3e8;border-radius:6px;padding:4px 7px;margin:3px 3px 5px 0;font-size:.74rem}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions a{color:#194b3c;font-size:.83rem}dialog{border:0;border-radius:16px;max-width:min(480px,95vw);padding:24px;box-shadow:0 20px 70px #10291c44}dialog::backdrop{background:#06140c88}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#status{padding:10px;border-radius:8px;background:#f1f5ef;font-size:.83rem}footer{font-size:.76rem;color:#66786d;margin-top:15px}@media(max-width:760px){main{display:flex;flex-direction:column-reverse;height:auto}#map{height:56dvh;min-height:330px}aside{max-height:none}header{padding:12px 16px}header p{font-size:.75rem}}
 </style></head><body>
-<header><div><h1>Quinto y Parque</h1><p>Un quinto para ti. Un parque para ellos. Valencia y alrededores.</p></div><div class="toolbar"><span id="account" class="small" style="color:white"></span><button id="login" class="secondary" hidden>Acceder con Google</button><button id="logout" class="secondary" hidden>Salir</button></div></header>
+<header><div class="brand">
+<img src="./brand/logo.svg" alt="Quinto y Parque" width="103" height="103" class="brand-logo">
+<div class="brand-copy">
+<h1 class="sr-only">Quinto y Parque</h1>
+<p class="eyebrow">Valencia y alrededores</p>
+<p class="hero-title">Tu terraza favorita.<br><span>Su parque ideal.</span></p>
+</div></div><div class="toolbar"><span id="account" class="small" style="color:white"></span><button id="login" class="secondary" hidden>Acceder con Google</button><button id="logout" class="secondary" hidden>Salir</button></div></header>
 <main><aside><h2 style="margin:0">Explora el mapa</h2><p class="small">Parques infantiles y cafeterías próximas. Que estén cerca <strong>no garantiza</strong> que los niños se vean desde la terraza.</p>
 <div class="controls"><button id="reload">Buscar aquí</button><button id="near" class="secondary">Mi ubicación</button><button id="suggest" class="secondary">Proponer sitio</button></div>
-<div id="status" role="status">Cargando mapa…</div><div class="controls"><label style="font-weight:normal"><input id="onlyParks" type="checkbox" style="width:auto;margin:0" checked> Mostrar parques</label><label style="font-weight:normal"><input id="onlyCafes" type="checkbox" style="width:auto;margin:0" checked> Mostrar bares y cafés</label></div>
+<div id="status" role="status">Cargando mapa…</div>
+<div class="map-legend" aria-label="Leyenda del mapa">
+<span><i class="legend-dot legend-park" aria-hidden="true"></i>Parques</span>
+<span><i class="legend-dot legend-cafe" aria-hidden="true"></i>Cafeterías y bares</span>
+<span><i class="legend-dot legend-verified" aria-hidden="true"></i>Verificados</span>
+</div><div class="controls"><label style="font-weight:normal"><input id="onlyParks" type="checkbox" style="width:auto;margin:0" checked> Mostrar parques</label><label style="font-weight:normal"><input id="onlyCafes" type="checkbox" style="width:auto;margin:0" checked> Mostrar bares y cafés</label></div>
 <h2 id="heading" style="font-size:1.1rem">Sitios próximos</h2><section id="results" aria-label="Sitios encontrados"></section>
 <footer>Datos cartográficos © OpenStreetMap contributors. Datos de locales obtenidos de OpenStreetMap/Overpass y enviados por familias. Información pendiente de verificar; comprueba terraza, seguridad y horarios antes de ir.</footer></aside><div id="map" aria-label="Mapa interactivo de Valencia"></div></main>
-<dialog id="modal"><form id="placeForm"><h2 style="margin-top:0">Proponer un sitio</h2><p class="small">Haz clic en un punto del mapa para seleccionar la ubicación. Solo se publicará después de revisarlo.</p>
+<dialog id="modal"><form id="placeForm"><img class="modal-brand" src="./brand/icon.svg" alt="" aria-hidden="true"><h2 style="margin-top:0">Proponer un sitio</h2><p class="small">Haz clic en un punto del mapa para seleccionar la ubicación. Solo se publicará después de revisarlo.</p>
 <label>Nombre del local<input name="name" required maxlength="120"></label>
 <label>Dirección<input name="address" required maxlength="250"></label>
 <label>¿Se ve el parque? ¿Hay que cruzar una calle?<textarea name="comment" required maxlength="700"></textarea></label>
@@ -53,9 +68,9 @@ function showPlace(o,type){const p=coords(o);map.setView([p.lat,p.lon],Math.max(
 let parkMarkers=new Map(),cafeMarkers=new Map();
 function render(){
 parkLayer.clearLayers();cafeLayer.clearLayers();parkMarkers=new Map();cafeMarkers=new Map();
-for(const p of parks){const c=coords(p),m=L.circleMarker([c.lat,c.lon],{radius:7,color:"#34854d",fillOpacity:.8}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>Parque infantil");parkMarkers.set(p.id,m);if($("onlyParks").checked)m.addTo(parkLayer);}
+for(const p of parks){const c=coords(p),m=L.circleMarker([c.lat,c.lon],{radius:7,color:"#608B00",fillColor:"#99D508",fillOpacity:.90,weight:2}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>Parque infantil");parkMarkers.set(p.id,m);if($("onlyParks").checked)m.addTo(parkLayer);}
 const scored=cafes.map(o=>{const p=coords(o);return {...o,dist:parks.length?Math.min(...parks.map(x=>distance(p,coords(x)))):null};}).filter(o=>o.dist!=null && o.dist<=150).sort((a,b)=>a.dist-b.dist);
-for(const p of scored){const c=coords(p),m=L.circleMarker([c.lat,c.lon],{radius:6,color:"#b47124",fillOpacity:.82}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+p.dist+" m del parque más próximo<br><small>Proximidad automática, sin verificar</small>");cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
+for(const p of scored){const c=coords(p),m=L.circleMarker([c.lat,c.lon],{radius:6,color:"#AE154E",fillColor:"#F21B6D",fillOpacity:.88,weight:2}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+p.dist+" m del parque más próximo<br><small>Proximidad automática, sin verificar</small>");cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
 const root=$("results");root.replaceChildren();$("heading").textContent="Locales a 150 m de un parque ("+scored.length+")";
 for(const p of scored.slice(0,35)){const article=document.createElement("article");const h=document.createElement("h3");h.textContent=safeLabel(p);article.append(h);const note=document.createElement("p");note.textContent=p.dist+" metros del parque más cercano · Pendiente de verificar terraza y visibilidad";article.append(note);
 const button=document.createElement("button");button.className="secondary";button.textContent="Ver en mapa";button.onclick=()=>showPlace(p,"cafe");const a=document.createElement("a");const c=coords(p);a.href="https://www.openstreetmap.org/?mlat="+c.lat+"&mlon="+c.lon+"#map=18/"+c.lat+"/"+c.lon;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir ubicación";const row=document.createElement("div");row.className="actions";row.append(button,a);article.append(row);root.append(article);}
@@ -67,6 +82,6 @@ const modal=$("modal");$("suggest").onclick=()=>{if(!db){alert("Pendiente de con
 $("cancel").onclick=()=>modal.close();
 map.on("click",e=>{if(!modal.open)return;selected=e.latlng;$("coords").textContent="Ubicación: "+selected.lat.toFixed(5)+", "+selected.lng.toFixed(5);if(selectionMarker)map.removeLayer(selectionMarker);selectionMarker=L.marker(selected).addTo(map);});
 $("placeForm").onsubmit=async e=>{e.preventDefault();if(!user||!db||!selected)return;const f=new FormData(e.target),button=e.target.querySelector('[type="submit"]');button.disabled=true;try{await addDoc(collection(db,"suggestions"),{uid:user.uid,name:String(f.get("name")).trim(),address:String(f.get("address")).trim(),comment:String(f.get("comment")).trim(),lat:selected.lat,lng:selected.lng,status:"pending",createdAt:serverTimestamp()});modal.close();e.target.reset();alert("Propuesta recibida. Quedará pendiente de revisión.");}catch(error){alert("No se pudo enviar: "+error.message);}finally{button.disabled=false;}};
-async function loadPublished(){if(!db)return;try{const snap=await getDocs(query(collection(db,"places"),where("status","==","published")));snap.forEach(doc=>{const p=doc.data();if(typeof p.lat!=="number"||typeof p.lng!=="number")return;L.marker([p.lat,p.lng]).bindPopup("<strong>"+escapeHTML(p.name)+"</strong><br>"+escapeHTML(p.description||"Sitio verificado por la comunidad")+"<br><b>Revisado</b>").addTo(verifiedLayer);});}catch(e){console.warn("No se pudieron cargar los locales publicados",e);}}
+async function loadPublished(){if(!db)return;try{const snap=await getDocs(query(collection(db,"places"),where("status","==","published")));snap.forEach(doc=>{const p=doc.data();if(typeof p.lat!=="number"||typeof p.lng!=="number")return;L.circleMarker([p.lat,p.lng],{radius:9,color:"#3D0A67",fillColor:"#FDC90A",fillOpacity:.96,weight:3}).bindPopup("<strong>"+escapeHTML(p.name)+"</strong><br>"+escapeHTML(p.description||"Sitio verificado por la comunidad")+"<br><b>Revisado</b>").addTo(verifiedLayer);});}catch(e){console.warn("No se pudieron cargar los locales publicados",e);}}
 loadPublished();fetchOSM();
 </script></body></html>
