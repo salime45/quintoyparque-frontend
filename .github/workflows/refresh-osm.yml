@@ -1,0 +1,75 @@
+# Mantiene versionado el catálogo OSM en el repositorio.
+# Una actualización de datos no debería afectar al despliegue de código.
+name: Update OpenStreetMap catalogue
+
+on:
+  # Inicialización del archivo al crear este workflow.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/refresh-osm.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "20 4 * * 1"
+
+permissions:
+  contents: write
+  checks: write
+
+concurrency:
+  group: update-osm-catalogue
+  cancel-in-progress: false
+
+jobs:
+  update-catalogue:
+    if: github.repository == 'salime45/quintoyparque-frontend' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Download OpenStreetMap catalogue
+        run: node scripts/refresh-osm.mjs
+      - name: Validate snapshot before committing
+        run: |
+          node -e '
+          const fs = require("fs");
+          const x = JSON.parse(fs.readFileSync("public/data/osm-places.json", "utf8"));
+          const parks = x.elements.filter(e => e.tags?.leisure === "playground");
+          const venues = x.elements.filter(e => ["cafe","bar","restaurant"].includes(e.tags?.amenity));
+          if (x.schemaVersion !== 1 || x.license !== "ODbL" || !x.coverage ||
+              parks.length < 50 || venues.length < 50) {
+            console.error("Datos incompletos; no se actualizará el catálogo.");
+            process.exit(1);
+          }
+          console.log("Catálogo válido:", parks.length, "parques,", venues.length, "locales");
+          '
+      - name: Commit updated catalogue
+        id: commit
+        shell: bash
+        run: |
+          if [[ -z "$(git status --porcelain -- public/data/osm-places.json)" ]]; then
+            echo "Sin cambios en los lugares de OpenStreetMap."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/osm-places.json
+          git commit -m "data: update Valencia OpenStreetMap snapshot"
+          git push origin HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      # Los pushes hechos con GITHUB_TOKEN no lanzan otros workflows;
+      # por eso publicamos aquí el nuevo catálogo cuando cambia.
+      - name: Publish updated catalogue to Firebase Hosting
+        if: steps.commit.outputs.changed == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE }}
+          channelId: live
+          projectId: quintoyparque
