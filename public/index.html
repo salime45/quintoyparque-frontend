@@ -25,7 +25,7 @@
 <span><i class="legend-dot legend-verified" aria-hidden="true"></i>Verificados</span>
 </div><div class="controls"><label style="font-weight:normal"><input id="onlyParks" type="checkbox" style="width:auto;margin:0" checked> Mostrar parques</label><label style="font-weight:normal"><input id="onlyCafes" type="checkbox" style="width:auto;margin:0" checked> Mostrar bares y cafés</label></div>
 <h2 id="heading" style="font-size:1.1rem">Sitios próximos</h2><section id="results" aria-label="Sitios encontrados"></section>
-<footer>Datos cartográficos © OpenStreetMap contributors. Datos de locales obtenidos de OpenStreetMap/Overpass y enviados por familias. Información pendiente de verificar; comprueba terraza, seguridad y horarios antes de ir.</footer></aside><div id="map" aria-label="Mapa interactivo de Valencia"></div></main>
+<footer>Datos © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a> (ODbL). El catálogo se actualiza en el servidor. Los locales propuestos por familias se revisan por separado. Comprueba terraza, cruces, seguridad y horarios antes de ir.</footer></aside><div id="map" aria-label="Mapa interactivo de Valencia"></div></main>
 <dialog id="modal"><form id="placeForm"><img class="modal-brand" src="./brand/icon.svg" alt="" aria-hidden="true"><h2 style="margin-top:0">Proponer un sitio</h2><p class="small">Haz clic en un punto del mapa para seleccionar la ubicación. Solo se publicará después de revisarlo.</p>
 <label>Nombre del local<input name="name" required maxlength="120"></label>
 <label>Dirección<input name="address" required maxlength="250"></label>
@@ -51,18 +51,50 @@ const escapeHTML=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;"
 const distance=(a,b)=>{const rad=Math.PI/180,R=6371000,x=(b.lat-a.lat)*rad,y=(b.lon-a.lon)*rad*Math.cos(a.lat*rad);return Math.round(R*Math.hypot(x,y));};
 const coords=o=>({lat:o.lat??o.center?.lat,lon:o.lon??o.center?.lon});
 function boundsQuery(){const b=map.getBounds(),s=Math.max(b.getSouth(),39.10),n=Math.min(b.getNorth(),39.85),w=Math.max(b.getWest(),-0.82),e=Math.min(b.getEast(),0.05);return s<n&&w<e?[s,w,n,e].map(x=>x.toFixed(5)).join(","):null;}
+let snapshotPromise = null;
+// Los datos OSM se descargan desde Firebase Hosting: mismo dominio, sin CORS.
+// GitHub Actions los genera en el despliegue, y los actualiza periódicamente.
+function loadSnapshot() {
+  if (!snapshotPromise) {
+    snapshotPromise = fetch("./data/osm-places.json", {cache:"no-cache"}).then(async response => {
+      if (!response.ok) throw new Error("Datos todavía no publicados (HTTP "+response.status+")");
+      if (!(response.headers.get("content-type")||"").includes("json")) throw new Error("Archivo de datos no disponible");
+      const data = await response.json();
+      if (!Array.isArray(data.elements) || !data.coverage) throw new Error("Formato de datos incorrecto");
+      return data;
+    }).catch(error => {
+      snapshotPromise = null; // Permitir reintentar con el botón.
+      throw error;
+    });
+  }
+  return snapshotPromise;
+}
 async function fetchOSM(){
-const bounds=boundsQuery();if(!bounds){status("Desplaza el mapa hacia Valencia.");return;}
-if(map.getZoom()<12){status("Acerca el mapa para consultar una zona más pequeña.");return;}
-status("Consultando parques infantiles y locales próximos…");$("reload").disabled=true;
-const q='[out:json][timeout:22];(nwr["leisure"="playground"]('+bounds+');nwr["amenity"~"^(cafe|bar|restaurant)$"]('+bounds+'););out center 1200;';
-try{
-let response;
-for(const host of ["https://overpass.kumi.systems/api/interpreter","https://overpass-api.de/api/interpreter"]){try{response=await fetch(host,{method:"POST",body:new URLSearchParams({data:q})});if(response.ok)break;}catch(e){console.warn(e);}}
-if(!response?.ok)throw new Error("Servicio cartográfico temporalmente no disponible");
-const data=await response.json();parks=data.elements.filter(x=>x.tags?.leisure==="playground"&&coords(x).lat!=null);cafes=data.elements.filter(x=>["cafe","bar","restaurant"].includes(x.tags?.amenity)&&coords(x).lat!=null);
-render();status(parks.length+" parques y "+cafes.length+" locales encontrados en la zona. Los locales aún no están verificados.");
-}catch(e){status("No ha sido posible cargar los datos. "+e.message+". Prueba de nuevo más tarde.");}finally{$("reload").disabled=false;}}
+  if(map.getZoom()<12){status("Acerca el mapa para explorar los establecimientos de una zona.");return;}
+  status("Cargando parques y cafeterías de Valencia…");$("reload").disabled=true;
+  try{
+    const data = await loadSnapshot();
+    const c = map.getCenter(), area = data.coverage;
+    if(c.lat<area.south||c.lat>area.north||c.lng<area.west||c.lng>area.east){
+      parks=[];cafes=[];render();
+      status("Esta zona todavía no está cubierta. Por ahora puedes explorar Valencia y alrededores.");
+      return;
+    }
+    // Mantener algo de margen al buscar parques, para calcular distancias a
+    // los locales cercanos a los bordes de la pantalla.
+    const view = map.getBounds();
+    const visibleParkArea = view.pad(0.10);
+    const inside = (item,bounds) => bounds.contains([item.lat,item.lon]);
+    parks=data.elements.filter(item=>item.tags?.leisure==="playground"&&inside(item,visibleParkArea));
+    cafes=data.elements.filter(item=>["cafe","bar","restaurant"].includes(item.tags?.amenity)&&inside(item,view));
+    render();
+    const date = new Date(data.generatedAt).toLocaleDateString("es-ES");
+    status(parks.length+" parques y "+cafes.length+" locales en esta zona. Datos OSM: "+date+". Terrazas y visibilidad sin verificar.");
+  }catch(error){
+    console.error("No se pudo leer el mapa precargado",error);
+    status("No se pudo cargar el catálogo local. "+error.message+". Inténtalo de nuevo en unos minutos.");
+  }finally{$("reload").disabled=false;}
+}
 function showPlace(o,type){const p=coords(o);map.setView([p.lat,p.lon],Math.max(16,map.getZoom()));const marker=type==="park"?parkMarkers.get(o.id):cafeMarkers.get(o.id);marker?.openPopup();}
 let parkMarkers=new Map(),cafeMarkers=new Map();
 function render(){
