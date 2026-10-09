@@ -8,7 +8,20 @@ Web para localizar parques infantiles y cafeterías, bares y restaurantes próxi
 - Distinción entre locales candidatos no verificados y lugares publicados desde Firestore.
 - Acceso con Google para proponer establecimientos que se guardan pendientes de moderación.
 
-## Desplegar en Firebase Hosting
+## Despliegue desde Google Cloud Shell (recomendado para primera publicación)
+
+Cloud Shell está autenticado con tu cuenta Google y ya dispone de Firebase CLI. Abre https://shell.cloud.google.com/?project=quintoyparque y ejecuta:
+
+```bash
+git clone https://github.com/salime45/quintoyparque-backend.git
+git clone https://github.com/salime45/quintoyparque-frontend.git
+cd quintoyparque-frontend
+bash deploy.sh
+```
+
+El script despliega primero las reglas de Firestore y, solo si estas se publican sin errores, el contenido de Hosting. No necesita contraseñas ni archivos de cuenta de servicio. Para repetirlo, ejecuta `git pull --ff-only` en ambos repositorios antes de lanzar el script.
+
+## Desplegar en Firebase Hosting desde Windows
 
 Requisitos: Node.js/npm, Firebase CLI, y cuenta Google con acceso al proyecto `quintoyparque`.
 
