@@ -13,11 +13,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Generate local park and cafe dataset (server side)
-        run: node scripts/refresh-osm.mjs
+      - name: Verify committed OSM catalogue
+        run: |
+          node -e '
+          const fs = require("fs");
+          const x = JSON.parse(fs.readFileSync("public/data/osm-places.json", "utf8"));
+          if (x.schemaVersion !== 1 || x.license !== "ODbL" ||
+              !x.coverage || !Array.isArray(x.elements) || x.elements.length < 200) {
+            throw new Error("Falta el catálogo OSM válido en GitHub");
+          }
+          console.log("Vista previa con", x.elements.length, "ubicaciones versionadas");
+          '
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
