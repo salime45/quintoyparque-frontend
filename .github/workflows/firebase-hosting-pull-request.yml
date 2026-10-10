@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Test map filtering and branded markers
+        run: node --test tests/*.test.mjs
       - name: Verify committed OSM catalogue
         run: |
           node -e '

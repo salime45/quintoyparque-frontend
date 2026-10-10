@@ -20,9 +20,9 @@
 <div class="controls"><button id="reload">Buscar aquí</button><button id="near" class="secondary">Mi ubicación</button><button id="suggest" class="secondary">Proponer sitio</button></div>
 <div id="status" role="status">Cargando mapa…</div>
 <div class="map-legend" aria-label="Leyenda del mapa">
-<span><i class="legend-dot legend-park" aria-hidden="true"></i>Parques con locales próximos</span>
-<span><i class="legend-dot legend-cafe" aria-hidden="true"></i>Cafeterías y bares</span>
-<span><i class="legend-dot legend-verified" aria-hidden="true"></i>Verificados</span>
+<span><span class="legend-brand legend-brand--park" aria-hidden="true"><img src="./brand/park-marker.svg" alt="" width="18" height="23"></span>Parques con locales próximos</span>
+<span><span class="legend-brand legend-brand--venue" aria-hidden="true"><img src="./brand/beer-marker.svg" alt="" width="18" height="23"></span>Cafeterías y bares</span>
+<span><span class="legend-brand legend-brand--verified" aria-hidden="true"><img src="./brand/beer-marker.svg" alt="" width="18" height="23"><b class="legend-brand__check">✓</b></span>Verificados</span>
 </div><div class="controls"><label style="font-weight:normal"><input id="onlyParks" type="checkbox" style="width:auto;margin:0" checked> Mostrar parques</label><label style="font-weight:normal"><input id="onlyCafes" type="checkbox" style="width:auto;margin:0" checked> Mostrar bares y cafés</label></div>
 <h2 id="heading" style="font-size:1.1rem">Sitios próximos</h2><section id="results" aria-label="Sitios encontrados"></section>
 <footer>Datos © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a> (ODbL). El catálogo se actualiza en el servidor. Los locales propuestos por familias se revisan por separado. Comprueba terraza, cruces, seguridad y horarios antes de ir.</footer></aside><div id="map" aria-label="Mapa interactivo de Valencia"></div></main>
@@ -99,12 +99,31 @@ async function fetchOSM(){
   }finally{$("reload").disabled=false;}
 }
 function showPlace(o,type){const p=coords(o);map.setView([p.lat,p.lon],Math.max(16,map.getZoom()));const marker=type==="park"?parkMarkers.get(o.id):cafeMarkers.get(o.id);marker?.openPopup();}
+// Marcadores de Leaflet con los dos símbolos originales del logotipo.
+function brandMarkerIcon(kind, verified=false) {
+  const isPark = kind === "park";
+  const asset = isPark ? "park-marker.svg" : "beer-marker.svg";
+  const mode = isPark ? "park" : "venue";
+  const verifiedClass = verified ? " qyp-map-marker--verified" : "";
+  const verifiedTag = verified ? '<b class="qyp-map-marker__check" aria-hidden="true">✓</b>' : "";
+  return L.divIcon({
+    className: "qyp-marker-host",
+    html: '<span class="qyp-map-marker qyp-map-marker--' + mode + verifiedClass +
+      '"><img src="./brand/' + asset + '" alt="" width="23" height="32">' + verifiedTag + '</span>',
+    iconSize: [40, 45],
+    iconAnchor: [20, 43],
+    popupAnchor: [0, -41],
+  });
+}
+const parkBrandIcon = brandMarkerIcon("park");
+const venueBrandIcon = brandMarkerIcon("venue");
+const verifiedBrandIcon = brandMarkerIcon("venue", true);
 let parkMarkers=new Map(),cafeMarkers=new Map();
 function render(){
 parkLayer.clearLayers();cafeLayer.clearLayers();parkMarkers=new Map();cafeMarkers=new Map();
-for(const p of parks){const c=coords(p),count=proximity?.parkVenueCounts.get(p.id)||0,m=L.circleMarker([c.lat,c.lon],{radius:7,color:"#302A46",fillColor:"#4B4466",fillOpacity:.91,weight:2}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+count+" locales a menos de 150 m (sin verificar)");parkMarkers.set(p.id,m);if($("onlyParks").checked)m.addTo(parkLayer);}
+for(const p of parks){const c=coords(p),count=proximity?.parkVenueCounts.get(p.id)||0,m=L.marker([c.lat,c.lon],{icon:parkBrandIcon,title:safeLabel(p)}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+count+" locales a menos de 150 m (sin verificar)");parkMarkers.set(p.id,m);if($("onlyParks").checked)m.addTo(parkLayer);}
 const scored=cafes.map(o=>({...o,dist:proximity?.venueDistances.get(o.id)??null})).filter(o=>o.dist!=null && o.dist<=150).sort((a,b)=>a.dist-b.dist);
-for(const p of scored){const c=coords(p),m=L.circleMarker([c.lat,c.lon],{radius:6,color:"#947500",fillColor:"#FFCB00",fillOpacity:.94,weight:2}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+p.dist+" m del parque más próximo<br><small>Proximidad automática, sin verificar</small>");cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
+for(const p of scored){const c=coords(p),m=L.marker([c.lat,c.lon],{icon:venueBrandIcon,title:safeLabel(p)}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+p.dist+" m del parque más próximo<br><small>Proximidad automática, sin verificar</small>");cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
 const root=$("results");root.replaceChildren();$("heading").textContent="Locales a 150 m de un parque ("+scored.length+")";
 for(const p of scored.slice(0,35)){const article=document.createElement("article");const h=document.createElement("h3");h.textContent=safeLabel(p);article.append(h);const note=document.createElement("p");note.textContent=p.dist+" metros del parque más cercano · Pendiente de verificar terraza y visibilidad";article.append(note);
 const button=document.createElement("button");button.className="secondary";button.textContent="Ver en mapa";button.onclick=()=>showPlace(p,"cafe");const a=document.createElement("a");const c=coords(p);a.href="https://www.openstreetmap.org/?mlat="+c.lat+"&mlon="+c.lon+"#map=18/"+c.lat+"/"+c.lon;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir ubicación";const row=document.createElement("div");row.className="actions";row.append(button,a);article.append(row);root.append(article);}
@@ -116,6 +135,6 @@ const modal=$("modal");$("suggest").onclick=()=>{if(!db){alert("Pendiente de con
 $("cancel").onclick=()=>modal.close();
 map.on("click",e=>{if(!modal.open)return;selected=e.latlng;$("coords").textContent="Ubicación: "+selected.lat.toFixed(5)+", "+selected.lng.toFixed(5);if(selectionMarker)map.removeLayer(selectionMarker);selectionMarker=L.marker(selected).addTo(map);});
 $("placeForm").onsubmit=async e=>{e.preventDefault();if(!user||!db||!selected)return;const f=new FormData(e.target),button=e.target.querySelector('[type="submit"]');button.disabled=true;try{await addDoc(collection(db,"suggestions"),{uid:user.uid,name:String(f.get("name")).trim(),address:String(f.get("address")).trim(),comment:String(f.get("comment")).trim(),lat:selected.lat,lng:selected.lng,status:"pending",createdAt:serverTimestamp()});modal.close();e.target.reset();alert("Propuesta recibida. Quedará pendiente de revisión.");}catch(error){alert("No se pudo enviar: "+error.message);}finally{button.disabled=false;}};
-async function loadPublished(){if(!db)return;try{const snap=await getDocs(query(collection(db,"places"),where("status","==","published")));snap.forEach(doc=>{const p=doc.data();if(typeof p.lat!=="number"||typeof p.lng!=="number")return;L.circleMarker([p.lat,p.lng],{radius:9,color:"#4B4466",fillColor:"#E2D7B7",fillOpacity:.98,weight:3}).bindPopup("<strong>"+escapeHTML(p.name)+"</strong><br>"+escapeHTML(p.description||"Sitio verificado por la comunidad")+"<br><b>Revisado</b>").addTo(verifiedLayer);});}catch(e){console.warn("No se pudieron cargar los locales publicados",e);}}
+async function loadPublished(){if(!db)return;try{const snap=await getDocs(query(collection(db,"places"),where("status","==","published")));snap.forEach(doc=>{const p=doc.data();if(typeof p.lat!=="number"||typeof p.lng!=="number")return;L.marker([p.lat,p.lng],{icon:verifiedBrandIcon,title:p.name||"Local verificado"}).bindPopup("<strong>"+escapeHTML(p.name)+"</strong><br>"+escapeHTML(p.description||"Sitio verificado por la comunidad")+"<br><b>Revisado</b>").addTo(verifiedLayer);});}catch(e){console.warn("No se pudieron cargar los locales publicados",e);}}
 loadPublished();fetchOSM();
 </script></body></html>
