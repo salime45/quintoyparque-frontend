@@ -34,3 +34,13 @@ test("Legend assets and the mobile map styles exist",()=>{
   assert.ok(css.includes("@media (max-width: 760px)"));
   assert.ok(html.includes("visiblePairs=filterVisiblePairs(data.elements,proximity"));
 });
+
+test("Proximidad prudente por defecto, ampliable sin cambiar el catálogo",()=>{
+  assert.match(html, /<option value="60" selected>60 m/);
+  assert.match(html, /<option value="100">100 m/);
+  assert.match(html, /<option value="150">150 m/);
+  assert.ok(html.includes('const radius = Number($("radius").value);'));
+  assert.ok(html.includes("visiblePairs=filterVisiblePairs(data.elements,proximity,item=>view.contains([item.lat,item.lon]),radius);"));
+  assert.ok(html.includes('$("radius").onchange=fetchOSM'));
+  assert.ok(css.includes(".radius-control select:focus-visible"));
+});

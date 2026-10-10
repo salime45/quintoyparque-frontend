@@ -16,14 +16,18 @@
 <p class="eyebrow">Valencia y alrededores</p>
 <p class="hero-title">Tu terraza favorita.<br><span>Su parque ideal.</span></p>
 </div></div><div class="toolbar"><span id="account" class="small" style="color:white"></span><button id="login" class="secondary" aria-label="Acceder con Google" hidden>Entrar</button><button id="logout" class="secondary" hidden>Salir</button></div></header>
-<main><aside><h2 style="margin:0">Explora el mapa</h2><p class="small">Mostramos solo parques con bares, cafeterías o restaurantes a un máximo de 150 m. La cercanía <strong>no garantiza</strong> que se vean desde la terraza.</p>
+<main><aside><h2 style="margin:0">Explora el mapa</h2><p class="small">Encuentra bares, cafeterías y restaurantes próximos a parques infantiles. La distancia es <strong>en línea recta</strong>: no garantiza que puedas ver el parque desde la terraza ni que no haya calles de por medio.</p>
 <div class="controls"><button id="reload">Buscar aquí</button><button id="near" class="secondary">Mi ubicación</button><button id="suggest" class="secondary">Proponer sitio</button></div>
 <div id="status" role="status">Cargando mapa…</div>
 <div class="map-legend" aria-label="Leyenda del mapa">
 <span><span class="legend-brand legend-brand--park" aria-hidden="true"><img src="./brand/park-marker.svg" alt="" width="18" height="23"></span>Parques con locales próximos</span>
 <span><span class="legend-brand legend-brand--venue" aria-hidden="true"><img src="./brand/beer-marker.svg" alt="" width="18" height="23"></span>Cafeterías y bares</span>
 <span><span class="legend-brand legend-brand--verified" aria-hidden="true"><img src="./brand/beer-marker.svg" alt="" width="18" height="23"><b class="legend-brand__check">✓</b></span>Verificados</span>
-</div><div class="controls"><label style="font-weight:normal"><input id="onlyParks" type="checkbox" style="width:auto;margin:0" checked> Mostrar parques</label><label style="font-weight:normal"><input id="onlyCafes" type="checkbox" style="width:auto;margin:0" checked> Mostrar bares y cafés</label></div>
+</div><div class="radius-control"><label for="radius">Distancia máxima al parque</label><select id="radius" aria-label="Distancia máxima entre el parque y el local">
+<option value="60" selected>60 m · Muy cerca</option>
+<option value="100">100 m · Cerca</option>
+<option value="150">150 m · Ampliar búsqueda</option>
+</select></div><div class="controls"><label style="font-weight:normal"><input id="onlyParks" type="checkbox" style="width:auto;margin:0" checked> Mostrar parques</label><label style="font-weight:normal"><input id="onlyCafes" type="checkbox" style="width:auto;margin:0" checked> Mostrar bares y cafés</label></div>
 <h2 id="heading" style="font-size:1.1rem">Sitios próximos</h2><section id="results" aria-label="Sitios encontrados"></section>
 <footer>Datos © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a> (ODbL). El catálogo se actualiza en el servidor. Los locales propuestos por familias se revisan por separado. Comprueba terraza, cruces, seguridad y horarios antes de ir.</footer></aside><div id="map" aria-label="Mapa interactivo de Valencia"></div></main>
 <dialog id="modal"><form id="placeForm"><img class="modal-brand" src="./brand/icon.svg" alt="" aria-hidden="true"><h2 style="margin-top:0">Proponer un sitio</h2><p class="small">Haz clic en un punto del mapa para seleccionar la ubicación. Solo se publicará después de revisarlo.</p>
@@ -84,12 +88,13 @@ async function fetchOSM(){
     }
     // Solo parejas que tienen ambos marcadores dentro del mapa visible.
     const view = map.getBounds();
-    visiblePairs=filterVisiblePairs(data.elements,proximity,item=>view.contains([item.lat,item.lon]),150);
+    const radius = Number($("radius").value);
+    visiblePairs=filterVisiblePairs(data.elements,proximity,item=>view.contains([item.lat,item.lon]),radius);
     parks=visiblePairs.parks;
     cafes=visiblePairs.venues;
     render();
     const date = new Date(data.generatedAt).toLocaleDateString("es-ES");
-    status(parks.length+" parques con bares visibles a 150 m y "+cafes.length+" locales asociados. Datos OSM: "+date+". Terrazas y visibilidad sin verificar.");
+    status(parks.length+" parques y "+cafes.length+" locales a un máximo de "+radius+" m. Datos OSM: "+date+". Terrazas y visibilidad sin verificar.");
   }catch(error){
     console.error("No se pudo leer el mapa precargado",error);
     status("No se pudo cargar el catálogo local. "+error.message+". Inténtalo de nuevo en unos minutos.");
@@ -128,12 +133,12 @@ parkLayer.clearLayers();cafeLayer.clearLayers();parkMarkers=new Map();cafeMarker
 for(const p of parks){const c=coords(p),count=visiblePairs?.parkVenueCounts.get(p.id)||0,m=L.marker([c.lat,c.lon],{icon:parkBrandIcon,title:safeLabel(p)}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+count+" locales a menos de 150 m (sin verificar)");parkMarkers.set(p.id,m);if($("onlyParks").checked)m.addTo(parkLayer);}
 const scored=cafes.map(o=>({...o,dist:visiblePairs?.venueDistances.get(o.id)??null})).filter(o=>o.dist!=null && o.dist<=150).sort((a,b)=>a.dist-b.dist);
 for(const p of scored){const c=coords(p),m=L.marker([c.lat,c.lon],{icon:venueBrandIcon,title:safeLabel(p)}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+p.dist+" m de "+escapeHTML(safeLabel(visiblePairs.nearestParkByVenue.get(p.id)))+"<br><small>Proximidad automática, sin verificar</small>");cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
-const root=$("results");root.replaceChildren();$("heading").textContent="Locales a 150 m de un parque ("+scored.length+")";
+const root=$("results");root.replaceChildren();$("heading").textContent="Locales a "+$("radius").value+" m de un parque ("+scored.length+")";
 for(const p of scored.slice(0,35)){const article=document.createElement("article");const h=document.createElement("h3");h.textContent=safeLabel(p);article.append(h);const note=document.createElement("p");note.textContent=p.dist+" metros del parque más cercano · Pendiente de verificar terraza y visibilidad";article.append(note);
 const button=document.createElement("button");button.className="secondary";button.textContent="Ver en mapa";button.onclick=()=>showPlace(p,"cafe");const a=document.createElement("a");const c=coords(p);a.href="https://www.openstreetmap.org/?mlat="+c.lat+"&mlon="+c.lon+"#map=18/"+c.lat+"/"+c.lon;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir ubicación";const row=document.createElement("div");row.className="actions";row.append(button,a);article.append(row);root.append(article);}
 if(!scored.length)root.textContent="No se han encontrado establecimientos próximos. Prueba en otra zona.";
 }
-$("reload").onclick=fetchOSM;$("onlyParks").onchange=render;$("onlyCafes").onchange=render;
+$("reload").onclick=fetchOSM;$("radius").onchange=fetchOSM;$("onlyParks").onchange=render;$("onlyCafes").onchange=render;
 $("near").onclick=()=>{if(!navigator.geolocation){status("El navegador no admite geolocalización.");return;}navigator.geolocation.getCurrentPosition(p=>{map.setView([p.coords.latitude,p.coords.longitude],15);fetchOSM();},()=>status("No se ha podido acceder a tu ubicación."),{enableHighAccuracy:false,timeout:9000});};
 const modal=$("modal");$("suggest").onclick=()=>{if(!db){alert("Pendiente de configurar Firebase. Por ahora puedes explorar el mapa.");return;}if(!user){alert("Inicia sesión para proponer un sitio.");return;}selected=map.getCenter();$("coords").textContent="Ubicación: "+selected.lat.toFixed(5)+", "+selected.lng.toFixed(5)+" (puedes cambiarla haciendo clic en el mapa)";modal.showModal();};
 $("cancel").onclick=()=>modal.close();
