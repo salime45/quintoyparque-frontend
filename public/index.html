@@ -16,11 +16,11 @@
 <p class="eyebrow">Valencia y alrededores</p>
 <p class="hero-title">Tu terraza favorita.<br><span>Su parque ideal.</span></p>
 </div></div><div class="toolbar"><span id="account" class="small" style="color:white"></span><button id="login" class="secondary" hidden>Acceder con Google</button><button id="logout" class="secondary" hidden>Salir</button></div></header>
-<main><aside><h2 style="margin:0">Explora el mapa</h2><p class="small">Parques infantiles y cafeterías próximas. Que estén cerca <strong>no garantiza</strong> que los niños se vean desde la terraza.</p>
+<main><aside><h2 style="margin:0">Explora el mapa</h2><p class="small">Mostramos solo parques con bares, cafeterías o restaurantes a un máximo de 150 m. La cercanía <strong>no garantiza</strong> que se vean desde la terraza.</p>
 <div class="controls"><button id="reload">Buscar aquí</button><button id="near" class="secondary">Mi ubicación</button><button id="suggest" class="secondary">Proponer sitio</button></div>
 <div id="status" role="status">Cargando mapa…</div>
 <div class="map-legend" aria-label="Leyenda del mapa">
-<span><i class="legend-dot legend-park" aria-hidden="true"></i>Parques</span>
+<span><i class="legend-dot legend-park" aria-hidden="true"></i>Parques con locales próximos</span>
 <span><i class="legend-dot legend-cafe" aria-hidden="true"></i>Cafeterías y bares</span>
 <span><i class="legend-dot legend-verified" aria-hidden="true"></i>Verificados</span>
 </div><div class="controls"><label style="font-weight:normal"><input id="onlyParks" type="checkbox" style="width:auto;margin:0" checked> Mostrar parques</label><label style="font-weight:normal"><input id="onlyCafes" type="checkbox" style="width:auto;margin:0" checked> Mostrar bares y cafés</label></div>
@@ -37,11 +37,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import config from "./firebase-config.js";
+import { buildProximityIndex } from "./js/proximity.js";
 const $=id=>document.getElementById(id), center=[39.4699,-0.3763];
 const map=L.map("map").setView(center,13);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
 const parkLayer=L.layerGroup().addTo(map), cafeLayer=L.layerGroup().addTo(map), verifiedLayer=L.layerGroup().addTo(map);
-let cafes=[],parks=[],auth=null,db=null,user=null,selected=null,selectionMarker=null;
+let cafes=[],parks=[],proximity=null,auth=null,db=null,user=null,selected=null,selectionMarker=null;
 if(config?.apiKey && config?.projectId){try{const app=initializeApp(config);auth=getAuth(app);db=getFirestore(app);$("login").hidden=false;onAuthStateChanged(auth,u=>{user=u;$("account").textContent=u?.displayName||"";$("login").hidden=!!u;$("logout").hidden=!u;});}catch(e){console.warn("Firebase unavailable",e);}}
 $("login").onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>alert("No se pudo iniciar sesión: "+e.message));
 $("logout").onclick=()=>signOut(auth);
@@ -52,8 +53,8 @@ const distance=(a,b)=>{const rad=Math.PI/180,R=6371000,x=(b.lat-a.lat)*rad,y=(b.
 const coords=o=>({lat:o.lat??o.center?.lat,lon:o.lon??o.center?.lon});
 function boundsQuery(){const b=map.getBounds(),s=Math.max(b.getSouth(),39.10),n=Math.min(b.getNorth(),39.85),w=Math.max(b.getWest(),-0.82),e=Math.min(b.getEast(),0.05);return s<n&&w<e?[s,w,n,e].map(x=>x.toFixed(5)).join(","):null;}
 let snapshotPromise = null;
-// Los datos OSM se descargan desde Firebase Hosting: mismo dominio, sin CORS.
-// GitHub Actions los genera en el despliegue, y los actualiza periódicamente.
+// Catálogo OSM versionado en GitHub y servido por Firebase, sin CORS.
+// La proximidad se indexa una sola vez sobre todos los lugares del catálogo.
 function loadSnapshot() {
   if (!snapshotPromise) {
     snapshotPromise = fetch("./data/osm-places.json", {cache:"no-cache"}).then(async response => {
@@ -74,22 +75,24 @@ async function fetchOSM(){
   status("Cargando parques y cafeterías de Valencia…");$("reload").disabled=true;
   try{
     const data = await loadSnapshot();
+    if(!proximity) proximity = buildProximityIndex(data.elements,150);
     const c = map.getCenter(), area = data.coverage;
     if(c.lat<area.south||c.lat>area.north||c.lng<area.west||c.lng>area.east){
       parks=[];cafes=[];render();
       status("Esta zona todavía no está cubierta. Por ahora puedes explorar Valencia y alrededores.");
       return;
     }
-    // Mantener algo de margen al buscar parques, para calcular distancias a
-    // los locales cercanos a los bordes de la pantalla.
+    // El índice usa todo el catálogo: una cafetería justo fuera de la vista
+    // también hace elegible al parque cercano que esté dentro del mapa.
     const view = map.getBounds();
-    const visibleParkArea = view.pad(0.10);
-    const inside = (item,bounds) => bounds.contains([item.lat,item.lon]);
-    parks=data.elements.filter(item=>item.tags?.leisure==="playground"&&inside(item,visibleParkArea));
-    cafes=data.elements.filter(item=>["cafe","bar","restaurant"].includes(item.tags?.amenity)&&inside(item,view));
+    const inside = item => view.contains([item.lat,item.lon]);
+    parks=data.elements.filter(item=>item.tags?.leisure==="playground"&&
+      proximity.parkIds.has(item.id)&&inside(item));
+    cafes=data.elements.filter(item=>["cafe","bar","restaurant"].includes(item.tags?.amenity)&&
+      proximity.venueDistances.has(item.id)&&inside(item));
     render();
     const date = new Date(data.generatedAt).toLocaleDateString("es-ES");
-    status(parks.length+" parques y "+cafes.length+" locales en esta zona. Datos OSM: "+date+". Terrazas y visibilidad sin verificar.");
+    status(parks.length+" parques con locales a 150 m y "+cafes.length+" locales cercanos en esta zona. Datos OSM: "+date+". Terrazas y visibilidad sin verificar.");
   }catch(error){
     console.error("No se pudo leer el mapa precargado",error);
     status("No se pudo cargar el catálogo local. "+error.message+". Inténtalo de nuevo en unos minutos.");
@@ -99,8 +102,8 @@ function showPlace(o,type){const p=coords(o);map.setView([p.lat,p.lon],Math.max(
 let parkMarkers=new Map(),cafeMarkers=new Map();
 function render(){
 parkLayer.clearLayers();cafeLayer.clearLayers();parkMarkers=new Map();cafeMarkers=new Map();
-for(const p of parks){const c=coords(p),m=L.circleMarker([c.lat,c.lon],{radius:7,color:"#608B00",fillColor:"#99D508",fillOpacity:.90,weight:2}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>Parque infantil");parkMarkers.set(p.id,m);if($("onlyParks").checked)m.addTo(parkLayer);}
-const scored=cafes.map(o=>{const p=coords(o);return {...o,dist:parks.length?Math.min(...parks.map(x=>distance(p,coords(x)))):null};}).filter(o=>o.dist!=null && o.dist<=150).sort((a,b)=>a.dist-b.dist);
+for(const p of parks){const c=coords(p),count=proximity?.parkVenueCounts.get(p.id)||0,m=L.circleMarker([c.lat,c.lon],{radius:7,color:"#608B00",fillColor:"#99D508",fillOpacity:.90,weight:2}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+count+" locales a menos de 150 m (sin verificar)");parkMarkers.set(p.id,m);if($("onlyParks").checked)m.addTo(parkLayer);}
+const scored=cafes.map(o=>({...o,dist:proximity?.venueDistances.get(o.id)??null})).filter(o=>o.dist!=null && o.dist<=150).sort((a,b)=>a.dist-b.dist);
 for(const p of scored){const c=coords(p),m=L.circleMarker([c.lat,c.lon],{radius:6,color:"#AE154E",fillColor:"#F21B6D",fillOpacity:.88,weight:2}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+p.dist+" m del parque más próximo<br><small>Proximidad automática, sin verificar</small>");cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
 const root=$("results");root.replaceChildren();$("heading").textContent="Locales a 150 m de un parque ("+scored.length+")";
 for(const p of scored.slice(0,35)){const article=document.createElement("article");const h=document.createElement("h3");h.textContent=safeLabel(p);article.append(h);const note=document.createElement("p");note.textContent=p.dist+" metros del parque más cercano · Pendiente de verificar terraza y visibilidad";article.append(note);

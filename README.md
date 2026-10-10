@@ -28,6 +28,7 @@ El catálogo inicial contiene 1.446 parques infantiles y 3.138 locales (4.584 ub
 ## Funcionalidades
 
 - Mapa Leaflet/OpenStreetMap, geolocalización opcional y filtros.
+- Solo se muestran los parques con al menos un bar, cafetería o restaurante a 150 metros; el emparejamiento se calcula sobre todo el catálogo para evitar errores en los bordes del mapa.
 - Datos OSM versionados y disponibles incluso cuando los servidores Overpass fallan.
 - Distinción entre locales candidatos no verificados y lugares publicados desde Firestore.
 - Acceso Google para proponer sitios, pendientes de moderación.
