@@ -37,12 +37,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import config from "./firebase-config.js";
-import { buildProximityIndex } from "./js/proximity.js";
+import { buildProximityIndex, filterVisiblePairs } from "./js/proximity.js";
 const $=id=>document.getElementById(id), center=[39.4699,-0.3763];
 const map=L.map("map").setView(center,13);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
 const parkLayer=L.layerGroup().addTo(map), cafeLayer=L.layerGroup().addTo(map), verifiedLayer=L.layerGroup().addTo(map);
-let cafes=[],parks=[],proximity=null,auth=null,db=null,user=null,selected=null,selectionMarker=null;
+let cafes=[],parks=[],proximity=null,visiblePairs=null,auth=null,db=null,user=null,selected=null,selectionMarker=null;
 if(config?.apiKey && config?.projectId){try{const app=initializeApp(config);auth=getAuth(app);db=getFirestore(app);$("login").hidden=false;onAuthStateChanged(auth,u=>{user=u;$("account").textContent=u?.displayName||"";$("login").hidden=!!u;$("logout").hidden=!u;});}catch(e){console.warn("Firebase unavailable",e);}}
 $("login").onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>alert("No se pudo iniciar sesión: "+e.message));
 $("logout").onclick=()=>signOut(auth);
@@ -78,27 +78,31 @@ async function fetchOSM(){
     if(!proximity) proximity = buildProximityIndex(data.elements,150);
     const c = map.getCenter(), area = data.coverage;
     if(c.lat<area.south||c.lat>area.north||c.lng<area.west||c.lng>area.east){
-      parks=[];cafes=[];render();
+      parks=[];cafes=[];visiblePairs=null;render();
       status("Esta zona todavía no está cubierta. Por ahora puedes explorar Valencia y alrededores.");
       return;
     }
-    // El índice usa todo el catálogo: una cafetería justo fuera de la vista
-    // también hace elegible al parque cercano que esté dentro del mapa.
+    // Solo parejas que tienen ambos marcadores dentro del mapa visible.
     const view = map.getBounds();
-    const inside = item => view.contains([item.lat,item.lon]);
-    parks=data.elements.filter(item=>item.tags?.leisure==="playground"&&
-      proximity.parkIds.has(item.id)&&inside(item));
-    cafes=data.elements.filter(item=>["cafe","bar","restaurant"].includes(item.tags?.amenity)&&
-      proximity.venueDistances.has(item.id)&&inside(item));
+    visiblePairs=filterVisiblePairs(data.elements,proximity,item=>view.contains([item.lat,item.lon]),150);
+    parks=visiblePairs.parks;
+    cafes=visiblePairs.venues;
     render();
     const date = new Date(data.generatedAt).toLocaleDateString("es-ES");
-    status(parks.length+" parques con locales a 150 m y "+cafes.length+" locales cercanos en esta zona. Datos OSM: "+date+". Terrazas y visibilidad sin verificar.");
+    status(parks.length+" parques con bares visibles a 150 m y "+cafes.length+" locales asociados. Datos OSM: "+date+". Terrazas y visibilidad sin verificar.");
   }catch(error){
     console.error("No se pudo leer el mapa precargado",error);
     status("No se pudo cargar el catálogo local. "+error.message+". Inténtalo de nuevo en unos minutos.");
   }finally{$("reload").disabled=false;}
 }
-function showPlace(o,type){const p=coords(o);map.setView([p.lat,p.lon],Math.max(16,map.getZoom()));const marker=type==="park"?parkMarkers.get(o.id):cafeMarkers.get(o.id);marker?.openPopup();}
+function showPlace(o,type){
+  const p=coords(o);
+  const companion=type==="cafe"?visiblePairs?.nearestParkByVenue.get(o.id):null;
+  if(companion)map.fitBounds([[p.lat,p.lon],[companion.lat,companion.lon]],{padding:[65,65],maxZoom:17,animate:false});
+  else map.setView([p.lat,p.lon],Math.max(16,map.getZoom()),{animate:false});
+  const marker=type==="park"?parkMarkers.get(o.id):cafeMarkers.get(o.id);
+  marker?.openPopup();
+}
 // Marcadores de Leaflet con los dos símbolos originales del logotipo.
 function brandMarkerIcon(kind, verified=false) {
   const isPark = kind === "park";
@@ -121,9 +125,9 @@ const verifiedBrandIcon = brandMarkerIcon("venue", true);
 let parkMarkers=new Map(),cafeMarkers=new Map();
 function render(){
 parkLayer.clearLayers();cafeLayer.clearLayers();parkMarkers=new Map();cafeMarkers=new Map();
-for(const p of parks){const c=coords(p),count=proximity?.parkVenueCounts.get(p.id)||0,m=L.marker([c.lat,c.lon],{icon:parkBrandIcon,title:safeLabel(p)}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+count+" locales a menos de 150 m (sin verificar)");parkMarkers.set(p.id,m);if($("onlyParks").checked)m.addTo(parkLayer);}
-const scored=cafes.map(o=>({...o,dist:proximity?.venueDistances.get(o.id)??null})).filter(o=>o.dist!=null && o.dist<=150).sort((a,b)=>a.dist-b.dist);
-for(const p of scored){const c=coords(p),m=L.marker([c.lat,c.lon],{icon:venueBrandIcon,title:safeLabel(p)}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+p.dist+" m del parque más próximo<br><small>Proximidad automática, sin verificar</small>");cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
+for(const p of parks){const c=coords(p),count=visiblePairs?.parkVenueCounts.get(p.id)||0,m=L.marker([c.lat,c.lon],{icon:parkBrandIcon,title:safeLabel(p)}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+count+" locales a menos de 150 m (sin verificar)");parkMarkers.set(p.id,m);if($("onlyParks").checked)m.addTo(parkLayer);}
+const scored=cafes.map(o=>({...o,dist:visiblePairs?.venueDistances.get(o.id)??null})).filter(o=>o.dist!=null && o.dist<=150).sort((a,b)=>a.dist-b.dist);
+for(const p of scored){const c=coords(p),m=L.marker([c.lat,c.lon],{icon:venueBrandIcon,title:safeLabel(p)}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+p.dist+" m de "+escapeHTML(safeLabel(visiblePairs.nearestParkByVenue.get(p.id)))+"<br><small>Proximidad automática, sin verificar</small>");cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
 const root=$("results");root.replaceChildren();$("heading").textContent="Locales a 150 m de un parque ("+scored.length+")";
 for(const p of scored.slice(0,35)){const article=document.createElement("article");const h=document.createElement("h3");h.textContent=safeLabel(p);article.append(h);const note=document.createElement("p");note.textContent=p.dist+" metros del parque más cercano · Pendiente de verificar terraza y visibilidad";article.append(note);
 const button=document.createElement("button");button.className="secondary";button.textContent="Ver en mapa";button.onclick=()=>showPlace(p,"cafe");const a=document.createElement("a");const c=coords(p);a.href="https://www.openstreetmap.org/?mlat="+c.lat+"&mlon="+c.lon+"#map=18/"+c.lat+"/"+c.lon;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir ubicación";const row=document.createElement("div");row.className="actions";row.append(button,a);article.append(row);root.append(article);}

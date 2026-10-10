@@ -59,3 +59,38 @@ export function buildProximityIndex(elements, radiusMeters=150) {
   }
   return { parkIds, venueDistances, parkVenueCounts };
 }
+
+
+// Filtra pares completos de parque y local presentes en el viewport actual.
+export function filterVisiblePairs(elements, index, isVisible, radiusMeters=150) {
+  if(!Array.isArray(elements) || typeof isVisible!=="function" || !index?.parkIds || !index?.venueDistances) {
+    throw new TypeError("Catálogo o índice incorrectos");
+  }
+  if(!Number.isFinite(radiusMeters)||radiusMeters<=0)throw new RangeError("Radio no válido");
+  const parkCandidates=elements.filter(p=>valid(p)&&isPark(p)&&index.parkIds.has(p.id)&&isVisible(p));
+  const venueCandidates=elements.filter(v=>valid(v)&&isVenue(v)&&index.venueDistances.has(v.id)&&isVisible(v));
+  const selectedParks=new Set();
+  const parkVenueCounts=new Map();
+  const venueDistances=new Map();
+  const nearestParkByVenue=new Map();
+  const venues=[];
+  for(const venue of venueCandidates){
+    let closest=null, best=Infinity;
+    for(const park of parkCandidates){
+      const d=distanceMeters(venue,park);
+      if(d>radiusMeters)continue;
+      selectedParks.add(park.id);
+      parkVenueCounts.set(park.id,(parkVenueCounts.get(park.id)||0)+1);
+      if(d<best){closest=park;best=d;}
+    }
+    if(closest){
+      venues.push(venue);
+      nearestParkByVenue.set(venue.id,closest);
+      venueDistances.set(venue.id,Math.round(best));
+    }
+  }
+  return {
+    parks:parkCandidates.filter(p=>selectedParks.has(p.id)),
+    venues,venueDistances,nearestParkByVenue,parkVenueCounts
+  };
+}

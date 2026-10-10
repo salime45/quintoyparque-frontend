@@ -55,3 +55,31 @@ test("Ignora puntos con coordenadas inválidas",()=>{
   assert.equal(result.parkIds.size,1);
   assert.equal(result.venueDistances.size,1);
 });
+
+import {filterVisiblePairs} from "../public/js/proximity.js";
+
+test("No muestra un bar cuyo parque esté fuera del mapa",()=>{
+  const items=[park("p",39.47,-0.381),venue("v",39.47,-0.38,"bar")];
+  const result=filterVisiblePairs(items,buildProximityIndex(items),item=>item.lon>=-0.3805);
+  assert.equal(result.parks.length,0);
+  assert.equal(result.venues.length,0);
+});
+test("No muestra un parque cuyo bar esté fuera del mapa",()=>{
+  const items=[park("p",39.47,-0.38),venue("v",39.47,-0.381,"cafe")];
+  const result=filterVisiblePairs(items,buildProximityIndex(items),item=>item.lon>=-0.3805);
+  assert.equal(result.parks.length,0);
+  assert.equal(result.venues.length,0);
+});
+test("Solo deja parejas parque-bar presentes a la vez, con distancia real",()=>{
+  const items=[
+    park("p1",39.47),park("p2",39.48),
+    venue("v1",39.4705),venue("v2",39.4803,-0.38,"bar"),
+    venue("far",39.49)
+  ];
+  const result=filterVisiblePairs(items,buildProximityIndex(items),item=>item.lat<39.475);
+  assert.deepEqual(result.parks.map(x=>x.id),["p1"]);
+  assert.deepEqual(result.venues.map(x=>x.id),["v1"]);
+  assert.equal(result.nearestParkByVenue.get("v1").id,"p1");
+  assert.equal(result.parkVenueCounts.get("p1"),1);
+  assert.ok(result.venueDistances.get("v1")<150);
+});
