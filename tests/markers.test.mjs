@@ -32,5 +32,5 @@ test("Legend assets and the mobile map styles exist",()=>{
   assert.ok(css.includes(".qyp-map-marker"));
   assert.ok(css.includes(".qyp-marker-host:focus-visible"));
   assert.ok(css.includes("@media (max-width: 760px)"));
-  assert.ok(html.includes("proximity.parkIds.has(item.id)"));
+  assert.ok(html.includes("visiblePairs=filterVisiblePairs(data.elements,proximity"));
 });
