@@ -1,0 +1,57 @@
+name: Deploy Firebase Hosting and Firestore rules
+description: Test the app and Firestore rules, publish rules first, then Firebase Hosting.
+inputs:
+  firebase_service_account:
+    description: JSON for the existing Firebase Hosting deploy service account
+    required: true
+  github_token:
+    description: GitHub token for Firebase Hosting deploy action
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "24"
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: "21"
+    - name: Install pinned Firebase tools and rule test dependencies
+      shell: bash
+      run: npm install --no-audit --no-fund
+    - name: Run frontend tests
+      shell: bash
+      run: npm test
+    - name: Test Firestore security rules with local emulator
+      shell: bash
+      run: npm run test:firestore
+    - name: Check indexed dataset and Firestore index config
+      shell: bash
+      run: |
+        node - <<'NODE'
+        const fs=require('node:fs');
+        const data=JSON.parse(fs.readFileSync('public/data/osm-places.json','utf8'));
+        const indexes=JSON.parse(fs.readFileSync('firestore.indexes.json','utf8'));
+        if(data.schemaVersion!==1 || data.license!=='ODbL' || !data.coverage ||
+          !Array.isArray(data.elements)||data.elements.length<200)
+          throw Error('Catálogo OpenStreetMap incompleto');
+        if(!Array.isArray(indexes.indexes)||!Array.isArray(indexes.fieldOverrides))
+          throw Error('Configuración de índices Firestore inválida');
+        console.log('OK: '+data.elements.length+' lugares y '+indexes.indexes.length+' índices definidos');
+        NODE
+    - name: Authenticate Firebase CLI for Firestore rules
+      uses: google-github-actions/auth@v3
+      with:
+        project_id: quintoyparque
+        credentials_json: ${{ inputs.firebase_service_account }}
+    - name: Deploy Firestore rules first (do not modify indexes)
+      shell: bash
+      run: npx --no-install firebase deploy --project quintoyparque --only firestore:rules --non-interactive
+    - name: Deploy Firebase Hosting only after rules succeed
+      uses: FirebaseExtended/action-hosting-deploy@v0
+      with:
+        repoToken: ${{ inputs.github_token }}
+        firebaseServiceAccount: ${{ inputs.firebase_service_account }}
+        channelId: live
+        projectId: quintoyparque

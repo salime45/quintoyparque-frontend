@@ -1,40 +1,27 @@
-# Publica exclusivamente los archivos versionados en el repositorio.
-# El catálogo de OpenStreetMap se actualiza en refresh-osm.yml.
-name: Deploy to Firebase Hosting on merge
+# Publicar reglas de Firestore antes del Hosting en cada cambio de main.
+# Los índices vacíos NO se despliegan automáticamente.
+name: Deploy Firebase Hosting and Firestore
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
-  group: firebase-hosting-live
+  group: firebase-live
   cancel-in-progress: false
 
 jobs:
-  build_and_deploy:
+  deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Test map filtering and branded markers
-        run: node --test tests/*.test.mjs
-      - name: Verify committed OSM catalogue
-        run: |
-          node -e '
-          const fs = require("fs");
-          const x = JSON.parse(fs.readFileSync("public/data/osm-places.json", "utf8"));
-          if (x.schemaVersion !== 1 || x.license !== "ODbL" ||
-              !x.coverage || !Array.isArray(x.elements) || x.elements.length < 200) {
-            throw new Error("Falta el catálogo OSM válido en GitHub");
-          }
-          console.log("Publicando", x.elements.length, "ubicaciones desde el repositorio");
-          '
-      - name: Deploy versioned frontend to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      - uses: ./.github/actions/deploy-live
         with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE }}
-          channelId: live
-          projectId: quintoyparque
+          firebase_service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}

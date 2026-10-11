@@ -9,3 +9,6 @@ firebase-debug.*.log
 *service-account*.json
 *firebase-adminsdk*.json
 *.pem
+
+# Temporary files created by Google Cloud authentication in GitHub Actions
+gha-creds-*.json

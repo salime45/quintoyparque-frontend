@@ -1,26 +1,30 @@
 #!/usr/bin/env bash
-# Firebase project: quintoyparque.
-# Ejecucion: bash deploy.sh
-# Clonar quintoyparque-backend y quintoyparque-frontend en la misma carpeta.
+# Despliegue manual de Quinto y Parque desde este único repositorio.
+# Uso: bash deploy.sh [all|hosting|rules|indexes]
 set -euo pipefail
-
 PROJECT_ID="quintoyparque"
-FRONTEND_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_DIR="$(dirname "$FRONTEND_DIR")/quintoyparque-backend"
-
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+MODE="${1:-all}"
 if ! command -v firebase >/dev/null 2>&1; then
-  echo "Firebase CLI no disponible. Instala firebase-tools o usa Google Cloud Shell." >&2
+  echo "Instala Firebase CLI: npm install -g firebase-tools" >&2
   exit 1
 fi
-if [[ ! -f "$BACKEND_DIR/firestore.rules" ]]; then
-  echo "Falta $BACKEND_DIR/firestore.rules. Clona el repositorio backend como carpeta hermana." >&2
-  exit 1
-fi
-
-echo "1/2: Desplegando reglas de Firestore..."
-(cd "$BACKEND_DIR" && firebase deploy --project "$PROJECT_ID" --only firestore:rules)
-
-echo "2/2: Desplegando web en Firebase Hosting..."
-(cd "$FRONTEND_DIR" && firebase deploy --project "$PROJECT_ID" --only hosting)
-
-echo "Despliegue completado. Comprueba https://quintoyparque.web.app/"
+cd "$ROOT"
+case "$MODE" in
+  all)
+    firebase deploy --project "$PROJECT_ID" --only firestore:rules
+    firebase deploy --project "$PROJECT_ID" --only hosting
+    ;;
+  hosting)
+    # Igual que en CI: no desplegar Hosting sin reglas.
+    firebase deploy --project "$PROJECT_ID" --only firestore:rules
+    firebase deploy --project "$PROJECT_ID" --only hosting
+    ;;
+  rules) firebase deploy --project "$PROJECT_ID" --only firestore:rules ;;
+  indexes)
+    echo "ATENCION: el archivo de indices vacio puede eliminar indices del proyecto."
+    firebase deploy --project "$PROJECT_ID" --only firestore:indexes
+    ;;
+  *) echo "Modo invalido: $MODE. Usa all, hosting, rules o indexes." >&2; exit 1 ;;
+esac
+echo "Completado. Proyecto $PROJECT_ID."

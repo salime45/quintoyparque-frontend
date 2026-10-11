@@ -24,7 +24,7 @@ jobs:
   update-catalogue:
     if: github.repository == 'salime45/quintoyparque-frontend' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,11 +65,9 @@ jobs:
           echo "changed=true" >> "$GITHUB_OUTPUT"
       # Los pushes hechos con GITHUB_TOKEN no lanzan otros workflows;
       # por eso publicamos aquí el nuevo catálogo cuando cambia.
-      - name: Publish updated catalogue to Firebase Hosting
+      - name: Deploy rules and Hosting using the updated catalogue
         if: steps.commit.outputs.changed == 'true'
-        uses: FirebaseExtended/action-hosting-deploy@v0
+        uses: ./.github/actions/deploy-live
         with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE }}
-          channelId: live
-          projectId: quintoyparque
+          firebase_service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
