@@ -193,12 +193,6 @@ async function loadReviewedVenues(){
     console.warn("No se pudo consultar el listado de locales con reseñas",error);
   }
 }
-function markVenueReviewed(venue){
-  const key=osmVenueKey(venue);
-  if(reviewedVenueKeys.has(key))return;
-  reviewedVenueKeys.add(key);
-  render();
-}
 function showPlace(o,type){
   const p=coords(o);
   const companion=type==="cafe"?visiblePairs?.nearestParkByVenue.get(o.id):null;
