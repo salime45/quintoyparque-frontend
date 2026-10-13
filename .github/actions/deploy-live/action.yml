@@ -19,7 +19,7 @@ runs:
         java-version: "21"
     - name: Install pinned Firebase tools and rule test dependencies
       shell: bash
-      run: npm install --no-audit --no-fund
+      run: npm ci --no-audit --no-fund
     - name: Run frontend tests
       shell: bash
       run: npm test
@@ -41,6 +41,15 @@ runs:
           data.parkAreaCount+' zonas delimitadas y '+data.parkMatches.length+
           ' parejas detectadas dentro del mismo parque');
         NODE
+    - name: Build Vue frontend
+      shell: bash
+      run: npm run build
+    - name: Install Chromium for browser tests
+      shell: bash
+      run: npx playwright install --with-deps chromium
+    - name: Test desktop and mobile explorer
+      shell: bash
+      run: npm run test:e2e
     - name: Authenticate Firebase CLI for Firestore rules
       uses: google-github-actions/auth@v3
       with:

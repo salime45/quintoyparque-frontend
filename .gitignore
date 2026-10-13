@@ -12,3 +12,9 @@ firebase-debug.*.log
 
 # Temporary files created by Google Cloud authentication in GitHub Actions
 gha-creds-*.json
+
+# Compilación y resultados de pruebas del frontend.
+dist/
+playwright-report/
+test-results/
+firestore-debug.log

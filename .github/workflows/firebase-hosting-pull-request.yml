@@ -25,11 +25,17 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Test frontend
         run: npm test
       - name: Test Firestore rules
         run: npm run test:firestore
+      - name: Build Vue frontend
+        run: npm run build
+      - name: Install Chromium for browser tests
+        run: npx playwright install --with-deps chromium
+      - name: Test desktop and mobile explorer
+        run: npm run test:e2e
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

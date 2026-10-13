@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {buildProximityIndex} from "../public/js/proximity.js";
+import {buildProximityIndex} from "../src/lib/proximity.js";
 
 const park = (id, lat, lon=-0.38) => ({id,lat,lon,tags:{leisure:"playground"}});
 const venue = (id, lat, lon=-0.38,amenity="cafe")=>({id,lat,lon,tags:{amenity}});
@@ -57,7 +57,7 @@ test("Ignora puntos con coordenadas inválidas",()=>{
   assert.equal(result.venueDistances.size,1);
 });
 
-import {filterVisiblePairs} from "../public/js/proximity.js";
+import {filterVisiblePairs} from "../src/lib/proximity.js";
 
 test("No muestra un bar cuyo parque esté fuera del mapa",()=>{
   const items=[park("p",39.47,-0.381),venue("v",39.47,-0.38,"bar")];

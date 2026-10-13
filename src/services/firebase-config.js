@@ -7,5 +7,5 @@ export default {
   storageBucket: "quintoyparque.firebasestorage.app",
   messagingSenderId: "277470161375",
   appId: "1:277470161375:web:316d6f98267295acdfbc6a",
-  measurementId: "G-RGYF180EJS"
+  measurementId: "G-RGYF180EJS",
 };

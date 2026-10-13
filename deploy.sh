@@ -12,6 +12,8 @@ fi
 cd "$ROOT"
 case "$MODE" in
   all|hosting)
+    npm ci --no-audit --no-fund
+    npm run build
     # Publicamos siempre reglas antes de Hosting, también en modo manual.
     firebase deploy --project "$PROJECT_ID" --only firestore:rules
     firebase deploy --project "$PROJECT_ID" --only hosting
