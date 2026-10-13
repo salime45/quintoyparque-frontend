@@ -33,20 +33,20 @@ El catálogo inicial contiene 1.446 parques infantiles y 3.138 locales (4.584 ub
 - Distinción entre locales candidatos no verificados y lugares publicados desde Firestore.
 - Acceso Google para proponer sitios, pendientes de moderación.
 - **Reseñas de bares del mapa**: 1–5 estrellas, visibilidad del parque desde la terraza, cruce de calle y comentario opcional. Se publican inmediatamente al enviarlas con sesión de Google.
+- **Locales verificados por la comunidad**: cualquier bar con una o más reseñas publicadas muestra el distintivo de verificado y aparece en el filtro «Solo verificados». El distintivo indica que alguien lo ha reseñado, no una inspección independiente.
+- **Mis reseñas**: listado personal, privado por usuario y editable (puntuación, visibilidad, cruce de calle y comentario).
 
-## Reseñas sin aprobación previa (Firestore)
+## Reseñas, distintivo de verificado y edición
 
-Cada establecimiento importado de OpenStreetMap se identifica de forma estable por su ID, por ejemplo `node/12258686901` → `node_12258686901`.
+Los locales de OpenStreetMap se reconocen por su ID estable, por ejemplo `node/12258686901` → `node_12258686901`.
 
-- Cada usuario autenticado puede publicar **una reseña por bar** en `osmReviews/{venueKey}/reviews/{uid}`, con valoración de 1–5 estrellas, visibilidad desde la terraza, cruce de calle y comentario opcional.
-- Las reseñas nuevas se guardan con `status: "published"` y aparecen públicamente **sin moderación manual**.
-- Las reseñas que ya estaban en `pending` antes del cambio se publican **cuando su propio autor abre la ficha de ese bar**, estando conectado. Se modifica exclusivamente su estado, no el contenido. No hay una migración masiva de otros usuarios en el servidor.
-- El público consulta las reseñas usando `where("status","==","published")`. Las reseñas antiguas todavía pendientes no son legibles por otros usuarios.
-- Los autores no pueden modificar su puntuación o comentario tras enviarlos ni borrar su reseña; un administrador puede intervenir desde Firebase Console en caso de contenido inapropiado.
-
-Se conserva el modelo de permisos previo para las reseñas de `places/{id}/reviews` (lugares verificados manualmente), cuya interfaz aún no está desarrollada. Las reseñas automáticas de la web se guardan exclusivamente en `osmReviews`.
-
-Las opiniones son aportaciones de usuarios, no verificaciones oficiales ni garantía de visibilidad, seguridad o accesibilidad.
+- `osmReviews/{venueKey}/reviews/{uid}`: la reseña publicada. Cada usuario autenticado puede crear una por local y editar después solo `rating`, `parkVisible`, `streetCrossing` y `comment`; `updatedAt` se actualiza automáticamente. No puede cambiar el autor, el local, el parque ni la fecha original.
+- `osmReviews/{venueKey}`: ficha pública mínima con `reviewed: true`, nombre y fecha de revisión. El frontend carga todos estos documentos en una sola consulta para pintar la cerveza con distintivo y habilitar el filtro de verificados, sin consultas independientes a cada bar ni índices personalizados.
+- `userReviews/{uid}/items/{venueKey}`: copia personal de la reseña, accesible exclusivamente por su propietario y por administradores. Permite construir «Mis reseñas» sin un índice global de reseñas. Las reglas comprueban que la copia coincida con la reseña pública.
+- El cliente crea/edita la reseña y actualiza los registros relacionados mediante **un lote atómico de Firestore**. Las reglas validan que el documento de resumen esté respaldado por una reseña publicada.
+- Las reseñas anteriores a estos índices auxiliares se incorporan cuando su **autor vuelve a abrir ese local con sesión iniciada**. El usuario verá esa reseña en «Mis reseñas» a partir de entonces; no hay migración global ni escaneo costoso del catálogo.
+- El texto «Verificado» significa **reseñado por al menos una persona**, no verificación oficial de terraza, visibilidad, seguridad ni calidad del local. Si un administrador elimina la última reseña de un bar, también debe borrar su documento resumen `osmReviews/{venueKey}` para que desaparezca el distintivo.
+- Un administrador puede intervenir desde Firebase Console ante opiniones inapropiadas. Los locales sugeridos por usuarios (`suggestions`) siguen necesitando aprobación antes de publicarse.
 
 ## Despliegue
 

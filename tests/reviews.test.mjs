@@ -59,8 +59,10 @@ test("Las fichas del mapa y la lista enlazan con el formulario",()=>{
   assert.ok(html.includes('where("status","==","published")'));
   assert.ok(html.includes('doc(db,"osmReviews",osmVenueKey(venue),"reviews",uid)'));
   assert.ok(html.includes('comment.textContent=item.comment'));
-  assert.ok(html.includes('await setDoc(myReviewRef(venue,uid),record);'));
-  assert.ok(html.includes('await updateDoc(reference,{status:"published"});'));
+  assert.ok(html.includes('batch.set(reference,record);'));
+  assert.ok(html.includes('batch.set(mirrorRef(uid,venue),record);'));
+  assert.ok(html.includes('await batch.commit();'));
+  assert.ok(html.includes('batch.update(reference,{status:"published"});'));
   assert.ok(html.includes('if(user){'));
   assert.ok(html.includes('await publishOlderPendingReview(venue);'));
   assert.ok(html.includes('refreshVisibleReviews(venue);'));
@@ -117,4 +119,38 @@ test("Popup adaptado a pantallas móviles, manteniendo el texto seguro",()=>{
   assert.ok(html.includes("comment.textContent=item.comment"));
   assert.ok(html.includes("title.textContent=safeLabel(venue)"));
   assert.ok(!html.slice(html.indexOf("function reviewChip"),html.indexOf("async function refreshReviewForm")).includes("innerHTML"));
+});
+
+test("Locales reseñados reciben marcador especial y filtro sin índices",()=>{
+  const html=here("public/index.html");
+  const css=here("public/brand/theme.css");
+  const rules=here("firestore.rules");
+  assert.ok(html.includes('getDocs(collection(db,"osmReviews"))'));
+  assert.ok(html.includes('let reviewedVenueKeys=new Set()'));
+  assert.ok(html.includes('icon:reviewed?verifiedBrandIcon:venueBrandIcon'));
+  assert.ok(html.includes('id="onlyVerified"'));
+  assert.ok(html.includes('$("onlyVerified").onchange=render'));
+  assert.ok(html.includes('verifiedOnly?scored.filter'));
+  assert.ok(html.includes('className="venue-reviewed-tag"'));
+  assert.ok(css.includes('.verified-filter:has(input:checked)'));
+  assert.ok(rules.includes('match /osmReviews/{venueKey}'));
+  assert.ok(!html.includes('collectionGroup('));
+});
+test("Mis reseñas se limita a la cuenta y permite editar todos los campos de opinión",()=>{
+  const html=here("public/index.html");
+  const rules=here("firestore.rules");
+  const css=here("public/brand/theme.css");
+  assert.ok(html.includes('id="myReviewsModal"'));
+  assert.ok(html.includes('id="myReviews"'));
+  assert.ok(html.includes('$("myReviews").hidden=!u'));
+  assert.ok(html.includes('getDocs(myReviewsCollection(uid))'));
+  assert.ok(html.includes('collection(db,"userReviews",uid,"items")'));
+  assert.ok(html.includes('edit.textContent="Editar reseña"'));
+  assert.ok(html.includes('reviewEditing=true;'));
+  assert.ok(html.includes('batch.update(reference,patch);'));
+  assert.ok(html.includes('batch.set(mirrorRef(uid,venue),{...previous.data(),...patch});'));
+  assert.ok(html.includes('updatedAt:serverTimestamp()'));
+  assert.ok(html.includes('reviewForm.querySelector('));
+  assert.ok(rules.includes('match /userReviews/{uid}/items/{venueKey}'));
+  assert.ok(css.includes('#myReviewsModal'));
 });

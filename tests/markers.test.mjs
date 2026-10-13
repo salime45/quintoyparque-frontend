@@ -21,7 +21,7 @@ test("Parks, venues and verified venues use branded Leaflet markers",()=>{
   assert.match(html,/const venueBrandIcon = brandMarkerIcon\("venue"\)/);
   assert.match(html,/const verifiedBrandIcon = brandMarkerIcon\("venue", true\)/);
   assert.ok(html.includes("L.marker([c.lat,c.lon],{icon:parkBrandIcon"));
-  assert.ok(html.includes("L.marker([c.lat,c.lon],{icon:venueBrandIcon"));
+  assert.ok(html.includes("icon:reviewed?verifiedBrandIcon:venueBrandIcon"));
   assert.ok(html.includes("L.marker([p.lat,p.lng],{icon:verifiedBrandIcon"));
   assert.equal(html.includes("L.circleMarker("),false);
 });

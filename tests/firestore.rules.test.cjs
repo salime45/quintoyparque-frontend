@@ -15,6 +15,7 @@ const {
   where,
   setDoc,
   updateDoc,
+  writeBatch,
   serverTimestamp,
 } = require("firebase/firestore");
 
@@ -196,4 +197,98 @@ test("OSM: published reviews cannot be replaced or deleted by their author", asy
   await assertFails(setDoc(osmPath(), osmReview("person-1", {rating:1})));
   await assertFails(updateDoc(osmPath(), {comment:"Cambio no autorizado"}));
   await assertSucceeds(updateDoc(osmPath("person-1", "node_12345", admin()), {comment:"Moderación excepcional"}));
+});
+
+const summaryPath = (venue = "node_12345", database = user()) =>
+  doc(database, "osmReviews", venue);
+const mirrorPath = (uid = "person-1", venue = "node_12345", database = user(uid)) =>
+  doc(database, "userReviews", uid, "items", venue);
+
+async function submitIndexedReview(uid = "person-1") {
+  const database = user(uid);
+  const data = osmReview(uid);
+  const write = writeBatch(database);
+  write.set(osmPath(uid, "node_12345", database), data);
+  write.set(mirrorPath(uid, "node_12345", database), data);
+  write.set(summaryPath("node_12345", database), {
+    reviewed: true, venueName: data.venueName, updatedAt: serverTimestamp()
+  }, {merge:true});
+  await assertSucceeds(write.commit());
+}
+
+test("Verified community venues must be backed by a published review", async () => {
+  await assertFails(setDoc(summaryPath(), {
+    reviewed:true, venueName:"Bar inventado", updatedAt:serverTimestamp()
+  }));
+  await assertFails(setDoc(mirrorPath(), osmReview("person-1")));
+  await submitIndexedReview();
+  const publicSummary=await assertSucceeds(getDoc(summaryPath("node_12345", anonymous())));
+  assert.equal(publicSummary.data().reviewed,true);
+  assert.deepEqual(Object.keys(publicSummary.data()).sort(),["reviewed","updatedAt","venueName"]);
+  const publicList=await assertSucceeds(getDocs(collection(anonymous(),"osmReviews")));
+  assert.equal(publicList.size,1);
+  const publicReview=await assertSucceeds(getDoc(osmPath("person-1","node_12345",anonymous())));
+  assert.equal(publicReview.data().status,"published");
+});
+
+test("Mis reseñas is private and can be read without collection-group indexes", async () => {
+  await submitIndexedReview();
+  const mine=await assertSucceeds(getDocs(collection(user(),"userReviews","person-1","items")));
+  assert.equal(mine.size,1);
+  assert.equal(mine.docs[0].data().venueName,"Cafetería junto al parque");
+  await assertFails(getDocs(collection(anonymous(),"userReviews","person-1","items")));
+  await assertFails(getDocs(collection(user("person-2"),"userReviews","person-1","items")));
+  await assertFails(getDoc(mirrorPath("person-1","node_12345",user("person-2"))));
+  await assertFails(setDoc(mirrorPath("person-1","node_678",user("person-2")),osmReview("person-2")));
+});
+
+test("Editing an own published review succeeds, keeping the private copy in sync", async () => {
+  await submitIndexedReview();
+  const before=await assertSucceeds(getDoc(osmPath()));
+  const next={rating:2,comment:"Editado tras otra visita",parkVisible:false,
+    streetCrossing:true,updatedAt:serverTimestamp()};
+  const database=user(), batch=writeBatch(database);
+  batch.update(osmPath("person-1","node_12345",database),next);
+  batch.set(mirrorPath("person-1","node_12345",database),{...before.data(),...next});
+  batch.set(summaryPath("node_12345",database),{
+    reviewed:true,venueName:"Cafetería junto al parque",updatedAt:serverTimestamp()
+  },{merge:true});
+  await assertSucceeds(batch.commit());
+  const publicReview=await assertSucceeds(getDoc(osmPath("person-1","node_12345",anonymous())));
+  assert.equal(publicReview.data().rating,2);
+  assert.equal(publicReview.data().parkVisible,false);
+  assert.equal(publicReview.data().comment,"Editado tras otra visita");
+  const myCopy=await assertSucceeds(getDoc(mirrorPath()));
+  assert.equal(myCopy.data().rating,2);
+  assert.equal(myCopy.data().streetCrossing,true);
+});
+
+test("Editing cannot forge identity, change the park, or bypass field checks", async () => {
+  await submitIndexedReview();
+  await assertFails(updateDoc(osmPath(),{rating:1}));
+  await assertFails(updateDoc(osmPath(),{rating:8,updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(osmPath(),{parkId:"way/999",updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(osmPath(),{uid:"another-person",updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(osmPath(),{status:"pending",updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(osmPath("person-1","node_12345",user("person-2")),
+    {comment:"No soy el autor",updatedAt:serverTimestamp()}));
+  await assertFails(setDoc(mirrorPath(),osmReview("person-1",{rating:1})));
+});
+
+test("A historical pending review can be promoted and indexed by its author", async () => {
+  await seedLegacyPendingReview("person-1");
+  const previously=await assertSucceeds(getDoc(osmPath()));
+  const database=user();
+  const batch=writeBatch(database);
+  batch.update(osmPath("person-1","node_12345",database),{status:"published"});
+  batch.set(mirrorPath("person-1","node_12345",database),
+    {...previously.data(),status:"published"});
+  batch.set(summaryPath("node_12345",database),{
+    reviewed:true,venueName:"Cafetería junto al parque",updatedAt:serverTimestamp()
+  },{merge:true});
+  await assertSucceeds(batch.commit());
+  const resulting=await assertSucceeds(getDoc(osmPath("person-1","node_12345",anonymous())));
+  assert.equal(resulting.data().status,"published");
+  const myListing=await assertSucceeds(getDoc(mirrorPath()));
+  assert.equal(myListing.data().status,"published");
 });
