@@ -100,6 +100,20 @@ Los locales de OpenStreetMap se reconocen por su ID estable, por ejemplo `node/1
 
 ## Despliegue
 
+### Vista previa al compartir en WhatsApp
+
+`public/index.html` incluye metadatos Open Graph estáticos para que la tarjeta
+pueda leerse sin ejecutar JavaScript. La portada es
+`public/brand/whatsapp-cover-v1.png` (1200 × 630 px), con URL HTTPS absoluta.
+El título, la descripción y la portada presentan Valencia y alrededores.
+
+Después de desplegar Hosting, pegar `https://quintoyparque.web.app/` en un chat
+de prueba y esperar a que aparezca la tarjeta antes de enviar. Comprobar imagen,
+título y apertura del mapa en Android e iPhone. La prueba local de diseño no
+confirma la tarjeta real ni los permisos de ubicación y acceso Google dentro
+del navegador de WhatsApp. Si se cambia la imagen, utilizar un nuevo nombre
+de archivo y actualizar sus metadatos para evitar reutilizar la imagen anterior.
+
 El flujo habitual es hacer push a `main` y comprobar el workflow **Deploy Firebase Hosting and Firestore**. Si se modifica la extracción geográfica, el workflow de actualización regenera los polígonos y publica el catálogo antes de activar esta versión.
 
 Para un despliegue excepcional desde tu equipo, tras autenticarte con `firebase login`, ejecuta `bash deploy.sh` (o `.\\deploy.ps1` en Windows). Ambos publican primero las reglas y después Hosting.
