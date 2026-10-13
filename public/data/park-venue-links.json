@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "description": "Relaciones documentadas de cafeterías ubicadas dentro de parques urbanos con zonas de juegos. No implican visibilidad de la zona infantil desde la terraza.",
+  "links": [
+    {
+      "venueId": "node/1981174883",
+      "playgroundId": "way/1097654987",
+      "parkName": "Parc de Marxalenes",
+      "displayName": "Cafetería del Parc de Marxalenes",
+      "verification": "pendiente",
+      "sourceUrl": "https://jardins.valencia.es/es/jardin/parque-de-marxalenes"
+    }
+  ]
+}

@@ -7,7 +7,7 @@ Web móvil para encontrar cafeterías, bares y restaurantes cerca de parques inf
 La aplicación **no hace consultas a Overpass desde el navegador** y **los despliegues ordinarios tampoco necesitan Overpass**.
 
 - [`public/data/osm-places.json`](public/data/osm-places.json): archivo versionado con ubicaciones de OpenStreetMap (parques y locales). Incluye fecha, cobertura y licencia.
-- [`public/index.html`](public/index.html): lee el JSON a través de Firebase Hosting (`/data/osm-places.json`) y calcula los establecimientos cercanos a los parques, con distancias configurables de 60, 100 o 150 metros en línea recta.
+- [`public/index.html`](public/index.html): lee el JSON a través de Firebase Hosting (`/data/osm-places.json`) y calcula los establecimientos cercanos a los parques, con distancias configurables de 60, 100 o 150 metros en línea recta (también admite cafeterías documentadas dentro del mismo parque).
 - [`scripts/refresh-osm.mjs`](scripts/refresh-osm.mjs): obtiene datos de Overpass **solo** al actualizar el catálogo.
 - [`.github/workflows/refresh-osm.yml`](.github/workflows/refresh-osm.yml): actualiza semanalmente (lunes, 04:20 UTC) o al ejecutarlo manualmente, valida el JSON, crea un commit en `main` si cambian las ubicaciones y publica las reglas de Firestore seguidas de Hosting. Si falla Overpass, conserva el catálogo versionado.
 - [`.github/workflows/firebase-hosting-merge.yml`](.github/workflows/firebase-hosting-merge.yml): prueba y despliega reglas de Firestore y luego Hosting en cada push a `main`, sin descargar datos externos.
@@ -24,6 +24,23 @@ Los commits hechos por `GITHUB_TOKEN` no lanzan otros workflows de `push`, por e
 El catálogo inicial contiene 1.446 parques infantiles y 3.138 locales (4.584 ubicaciones) de Valencia y su entorno. No significa que todos los bares tengan terraza, ni que sea visible el parque desde ella. La cobertura se limita a un rectángulo aproximado de latitud 39.28–39.67 y longitud -0.62–-0.20. Estos números cambiarán en futuras actualizaciones.
 
 **Créditos y licencia:** © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/). Los datos de ubicaciones redistribuidos conservan su atribución y licencia. Si se publica una base derivada, revisar los requisitos de la ODbL.
+
+## Cafeterías dentro del mismo parque
+
+El radio de búsqueda por defecto es **60 m de una zona infantil**. Para evitar perder
+cafeterías que se encuentran **dentro del mismo parque urbano** que una zona de
+juegos, aunque queden más lejos de 60 m, hay excepciones documentadas en
+[`public/data/park-venue-links.json`](public/data/park-venue-links.json).
+Cada entrada une un nodo OSM de cafetería con un área infantil OSM del mismo
+parque y contiene una fuente, sin considerarse «verificada» por ello.
+La distancia real hasta la zona infantil sigue mostrándose en el mapa, junto
+a la advertencia sobre visibilidad y terraza no comprobadas.
+
+El primer caso comunicado corresponde a una cafetería sin nombre en OSM
+dentro del Parc de Marxalenes. Cuando se comunique otra ubicación, añadirla
+a ese archivo **solo después de confirmar que ambos elementos pertenecen al
+mismo parque**. No ampliar por defecto el radio global a 150 m: generaría
+locales alejados o separados por calles.
 
 ## Funcionalidades
 

@@ -83,3 +83,45 @@ test("Solo deja parejas parque-bar presentes a la vez, con distancia real",()=>{
   assert.equal(result.parkVenueCounts.get("p1"),1);
   assert.ok(result.venueDistances.get("v1")<150);
 });
+
+test("Una cafetería dentro de un parque no se pierde por estar a 220 m de la zona infantil",()=>{
+  const items=[
+    park("juegos-marxalenes",39.4880823,-0.3827732),
+    venue("cafe-marxalenes",39.4872154,-0.3804847),
+  ];
+  const links=[{venueId:"cafe-marxalenes",playgroundId:"juegos-marxalenes",parkName:"Parc de Marxalenes",displayName:"Cafetería del Parc de Marxalenes"}];
+  const index=buildProximityIndex(items,150);
+  assert.equal(index.venueDistances.size,0); // El filtro radial no la encuentra.
+  const result=filterVisiblePairs(items,index,()=>true,60,links);
+  assert.deepEqual(result.parks.map(x=>x.id),["juegos-marxalenes"]);
+  assert.deepEqual(result.venues.map(x=>x.id),["cafe-marxalenes"]);
+  assert.equal(result.venues[0].displayName,"Cafetería del Parc de Marxalenes");
+  assert.ok(result.venueDistances.get("cafe-marxalenes")>150);
+  assert.equal(result.sameParkVenueIds.has("cafe-marxalenes"),true);
+  assert.equal(result.sameParkNames.get("cafe-marxalenes"),"Parc de Marxalenes");
+  assert.equal(result.parkVenueCounts.get("juegos-marxalenes"),1);
+});
+
+test("Un local normal a más de 60 m continúa excluido aunque esté dentro de 150 m",()=>{
+  const items=[park("juegos",39.47),venue("bar",39.4709)];
+  const result=filterVisiblePairs(items,buildProximityIndex(items,150),()=>true,60);
+  assert.equal(result.venues.length,0);
+  assert.equal(result.parks.length,0);
+});
+
+test("Un local documentado dentro del mismo parque aparece al hacer zoom aunque la zona infantil quede fuera de vista",()=>{
+  const items=[park("juegos",39.488),venue("cafe",39.487,-0.38)];
+  const links=[{venueId:"cafe",playgroundId:"juegos",parkName:"Parc X"}];
+  const result=filterVisiblePairs(items,buildProximityIndex(items,150),x=>x.id==="cafe",60,links);
+  assert.deepEqual(result.venues.map(x=>x.id),["cafe"]);
+  assert.equal(result.parks.length,0);
+  assert.equal(result.nearestParkByVenue.get("cafe").id,"juegos");
+});
+
+test("La excepción no se aplica a asociaciones incompletas o a locales no enlazados",()=>{
+  const items=[park("juegos",39.47),venue("unlinked",39.472)];
+  const badLinks=[{venueId:"unlinked",playgroundId:"parque-inexistente"},{venueId:"fake",playgroundId:"juegos"}];
+  const result=filterVisiblePairs(items,buildProximityIndex(items,150),()=>true,60,badLinks);
+  assert.equal(result.venues.length,0);
+  assert.equal(result.sameParkVenueIds.size,0);
+});

@@ -61,21 +61,39 @@ export function buildProximityIndex(elements, radiusMeters=150) {
 }
 
 
-// Filtra pares completos de parque y local presentes en el viewport actual.
-export function filterVisiblePairs(elements, index, isVisible, radiusMeters=150) {
-  if(!Array.isArray(elements) || typeof isVisible!=="function" || !index?.parkIds || !index?.venueDistances) {
+// Un enlace auditado entre un local y una zona de juegos del MISMO parque
+// puede incluirse incluso cuando se supera el radio de proximidad. Esto evita
+// perder cafeterías dentro de grandes parques urbanos. Son vínculos puntuales
+// documentados y no se extrapolan a otros locales ni a parques cercanos.
+// Un local normal sigue exigiendo distancia <= radio y parque visible.
+export function filterVisiblePairs(elements, index, isVisible, radiusMeters=150, sameParkLinks=[]) {
+  if(!Array.isArray(elements) || typeof isVisible!=="function" ||
+      !index?.parkIds || !index?.venueDistances || !Array.isArray(sameParkLinks)) {
     throw new TypeError("Catálogo o índice incorrectos");
   }
   if(!Number.isFinite(radiusMeters)||radiusMeters<=0)throw new RangeError("Radio no válido");
-  const parkCandidates=elements.filter(p=>valid(p)&&isPark(p)&&index.parkIds.has(p.id)&&isVisible(p));
-  const venueCandidates=elements.filter(v=>valid(v)&&isVenue(v)&&index.venueDistances.has(v.id)&&isVisible(v));
+  const knownParks=new Map(elements.filter(x=>valid(x)&&isPark(x)).map(x=>[x.id,x]));
+  const knownVenues=new Map(elements.filter(x=>valid(x)&&isVenue(x)).map(x=>[x.id,x]));
+  const links=new Map();
+  for(const link of sameParkLinks){
+    if(!link || typeof link.venueId!=="string" || typeof link.playgroundId!=="string" ||
+        !knownParks.has(link.playgroundId) || !knownVenues.has(link.venueId))continue;
+    links.set(link.venueId,link);
+  }
+  const linkedParkIds=new Set([...links.values()].map(x=>x.playgroundId));
+  const parkCandidates=[...knownParks.values()].filter(p=>
+    isVisible(p)&&(index.parkIds.has(p.id)||linkedParkIds.has(p.id)));
+  const venueCandidates=[...knownVenues.values()].filter(v=>
+    isVisible(v)&&(index.venueDistances.has(v.id)||links.has(v.id)));
   const selectedParks=new Set();
   const parkVenueCounts=new Map();
   const venueDistances=new Map();
   const nearestParkByVenue=new Map();
+  const sameParkVenueIds=new Set();
+  const sameParkNames=new Map();
   const venues=[];
   for(const venue of venueCandidates){
-    let closest=null, best=Infinity;
+    let closest=null,best=Infinity;
     for(const park of parkCandidates){
       const d=distanceMeters(venue,park);
       if(d>radiusMeters)continue;
@@ -83,14 +101,31 @@ export function filterVisiblePairs(elements, index, isVisible, radiusMeters=150)
       parkVenueCounts.set(park.id,(parkVenueCounts.get(park.id)||0)+1);
       if(d<best){closest=park;best=d;}
     }
+    const link=links.get(venue.id);
+    // Si el parque es grande, su zona infantil puede quedar fuera del viewport.
+    // Solo se permite esto cuando la pertenencia al MISMO parque fue documentada.
+    if(link){
+      sameParkVenueIds.add(venue.id);
+      sameParkNames.set(venue.id,link.parkName||"el mismo parque");
+      if(!closest){
+        closest=knownParks.get(link.playgroundId);
+        best=distanceMeters(venue,closest);
+        if(parkCandidates.some(p=>p.id===closest.id)){
+          selectedParks.add(closest.id);
+          parkVenueCounts.set(closest.id,(parkVenueCounts.get(closest.id)||0)+1);
+        }
+      }
+    }
     if(closest){
-      venues.push(venue);
+      const displayName=link?.displayName;
+      venues.push(displayName && !venue.tags?.name ? {...venue,displayName} : venue);
       nearestParkByVenue.set(venue.id,closest);
       venueDistances.set(venue.id,Math.round(best));
     }
   }
   return {
     parks:parkCandidates.filter(p=>selectedParks.has(p.id)),
-    venues,venueDistances,nearestParkByVenue,parkVenueCounts
+    venues,venueDistances,nearestParkByVenue,parkVenueCounts,
+    sameParkVenueIds,sameParkNames
   };
 }

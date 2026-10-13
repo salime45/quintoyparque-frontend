@@ -40,7 +40,24 @@ test("Proximidad prudente por defecto, ampliable sin cambiar el catálogo",()=>{
   assert.match(html, /<option value="100">100 m/);
   assert.match(html, /<option value="150">150 m/);
   assert.ok(html.includes('const radius = Number($("radius").value);'));
-  assert.ok(html.includes("visiblePairs=filterVisiblePairs(data.elements,proximity,item=>view.contains([item.lat,item.lon]),radius);"));
+  assert.ok(html.includes("visiblePairs=filterVisiblePairs(data.elements,proximity,item=>view.contains([item.lat,item.lon]),radius,data.parkVenueLinks);"));
   assert.ok(html.includes('$("radius").onchange=fetchOSM'));
   assert.ok(css.includes(".radius-control select:focus-visible"));
+});
+
+test("Incluye parques urbanos documentados sin confundirlos con reseñas verificadas",()=>{
+  const links=JSON.parse(file("public/data/park-venue-links.json"));
+  const osm=JSON.parse(file("public/data/osm-places.json"));
+  const ids=new Set(osm.elements.map(x=>x.id));
+  assert.equal(links.schemaVersion,1);
+  assert.ok(Array.isArray(links.links));
+  for(const link of links.links){
+    assert.ok(ids.has(link.venueId),"El local debe existir en el catálogo OSM: "+link.venueId);
+    assert.ok(ids.has(link.playgroundId),"La zona infantil debe existir: "+link.playgroundId);
+    assert.ok(link.sourceUrl.startsWith("https://"));
+    assert.equal(link.verification,"pendiente");
+  }
+  assert.ok(html.includes('fetch("./data/park-venue-links.json"'));
+  assert.ok(html.includes("o.dist<=radius||o.inSamePark"));
+  assert.ok(html.includes("Dentro del parque"));
 });
