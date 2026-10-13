@@ -1,5 +1,4 @@
 # Publicar reglas de Firestore antes del Hosting en cada cambio de main.
-# Los índices vacíos NO se despliegan automáticamente.
 name: Deploy Firebase Hosting and Firestore
 
 on:

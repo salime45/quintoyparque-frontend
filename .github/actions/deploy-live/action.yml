@@ -26,26 +26,23 @@ runs:
     - name: Test Firestore security rules with local emulator
       shell: bash
       run: npm run test:firestore
-    - name: Check indexed dataset and Firestore index config
+    - name: Validate versioned OpenStreetMap catalogue
       shell: bash
       run: |
         node - <<'NODE'
         const fs=require('node:fs');
         const data=JSON.parse(fs.readFileSync('public/data/osm-places.json','utf8'));
-        const indexes=JSON.parse(fs.readFileSync('firestore.indexes.json','utf8'));
         if(data.schemaVersion!==1 || data.license!=='ODbL' || !data.coverage ||
           !Array.isArray(data.elements)||data.elements.length<200)
           throw Error('Catálogo OpenStreetMap incompleto');
-        if(!Array.isArray(indexes.indexes)||!Array.isArray(indexes.fieldOverrides))
-          throw Error('Configuración de índices Firestore inválida');
-        console.log('OK: '+data.elements.length+' lugares y '+indexes.indexes.length+' índices definidos');
+        console.log('OK: '+data.elements.length+' ubicaciones');
         NODE
     - name: Authenticate Firebase CLI for Firestore rules
       uses: google-github-actions/auth@v3
       with:
         project_id: quintoyparque
         credentials_json: ${{ inputs.firebase_service_account }}
-    - name: Deploy Firestore rules first (do not modify indexes)
+    - name: Deploy Firestore rules first
       shell: bash
       run: npx --no-install firebase deploy --project quintoyparque --only firestore:rules --non-interactive
     - name: Deploy Firebase Hosting only after rules succeed

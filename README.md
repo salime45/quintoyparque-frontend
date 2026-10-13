@@ -52,22 +52,16 @@ La puntuación y las respuestas reflejan experiencias de usuarios y **no equival
 
 El flujo habitual es hacer push a `main` y comprobar el workflow **Deploy to Firebase Hosting on merge**.
 
-Para un despliegue excepcional desde tu equipo:
-
-```bash
-firebase login
-firebase deploy --project quintoyparque --only hosting
-```
+Para un despliegue excepcional desde tu equipo, tras autenticarte con `firebase login`, ejecuta `bash deploy.sh` (o `.\\deploy.ps1` en Windows). Ambos publican primero las reglas y después Hosting.
 
 El archivo `public/data/osm-places.json` debe existir en tu clon del repo. No ejecutes `firebase init`: ya están configurados `firebase.json` y `.firebaserc`.
 
 ## Configuración única de Firebase (Hosting y Firestore)
 
-El repositorio actual incluye **frontend, reglas, índices y pruebas de Firestore**. El antiguo [quintoyparque-backend](https://github.com/salime45/quintoyparque-backend) se conserva únicamente como histórico; no es una fuente de despliegues.
+El repositorio actual incluye **frontend, reglas y pruebas de Firestore**. El antiguo [quintoyparque-backend](https://github.com/salime45/quintoyparque-backend) se conserva únicamente como histórico; no es una fuente de despliegues.
 
 - `firebase.json`: Hosting y Firestore en el mismo proyecto `quintoyparque`.
-- `firestore.rules`: reglas de seguridad copiadas sin cambios del backend original.
-- `firestore.indexes.json`: índices declarados (actualmente vacío).
+- `firestore.rules`: reglas de seguridad para lugares, sugerencias y reseñas.
 - `tests/firestore.rules.test.cjs`: pruebas con el emulador de Firestore.
 - `package.json`: herramientas de tests y Firebase CLI.
 - `.github/actions/deploy-live/action.yml`: prueba frontend y Firestore, **despliega primero las reglas y después Hosting**.
@@ -77,8 +71,6 @@ El repositorio actual incluye **frontend, reglas, índices y pruebas de Firestor
 En los pull requests se ejecutan las pruebas y se publica solo una preview de Hosting: **no se modifican reglas de producción desde ramas de PR**.
 
 Se reutiliza el secreto de GitHub existente `FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE`, que debe tener permiso `roles/firebaserules.admin` (o equivalente) en Firebase. Si el paso de publicar reglas devuelve 403, hay que añadir permisos a la cuenta del secreto; no hay que enviar credenciales por chat.
-
-**Índices:** por seguridad no se despliegan automáticamente: el archivo actual está vacío y aplicarlo podría eliminar índices existentes. Para gestionarlos más adelante: revisar `firestore.indexes.json` y ejecutar explícitamente `firebase deploy --only firestore:indexes --project quintoyparque`.
 
 ### Pruebas en local
 
