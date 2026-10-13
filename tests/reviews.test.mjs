@@ -54,7 +54,7 @@ test("Las fichas del mapa y la lista enlazan con el formulario",()=>{
   assert.ok(html.includes('id="reviewForm"'));
   assert.ok(html.includes('name="parkVisible"'));
   assert.ok(html.includes('name="streetCrossing"'));
-  assert.ok(html.includes('bindPopup(()=>venuePopup(p,p.dist,park)'));
+  assert.ok(html.includes('bindPopup(()=>venuePopup(p,p.dist,park,p.inSamePark,p.urbanParkName)'));
   assert.ok(html.includes('reviewButton.textContent="Dejar reseña"'));
   assert.ok(html.includes('where("status","==","published")'));
   assert.ok(html.includes('doc(db,"osmReviews",osmVenueKey(venue),"reviews",uid)'));
