@@ -35,6 +35,48 @@ async function openMenu(page) {
   if (await page.locator("#menuToggle").isVisible())
     await page.locator("#menuToggle").click();
 }
+test("El icono de ubicación centra el mapa y actualiza la zona", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition(success) {
+          success({ coords: { latitude: 40.4168, longitude: -3.7038 } });
+        },
+      },
+    });
+  });
+  await page.goto("/");
+  const button = page.locator("#map").getByRole("button", {
+    name: "Centrar en mi ubicación",
+  });
+  await expect(button).toBeVisible();
+  await expect(button).toHaveText("");
+  await expect(button.locator("svg")).toBeVisible();
+  await button.click();
+  await openMenu(page);
+  await expect(page.locator("#status")).toContainText("Esta zona todavía no está cubierta");
+});
+test("El icono de ubicación permite informar de un permiso denegado", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition(success, failure) {
+          failure({ code: 1 });
+        },
+      },
+    });
+  });
+  await page.goto("/");
+  await openMenu(page);
+  await expect(page.locator("#status")).toContainText("1 locales a 60 m");
+  if (await page.locator("#menuClose").isVisible())
+    await page.locator("#menuClose").click();
+  await page.locator("#map").getByRole("button", { name: "Centrar en mi ubicación" }).click();
+  await openMenu(page);
+  await expect(page.locator("#status")).toContainText("No se ha podido acceder a tu ubicación");
+});
 test("El mapa usa el catálogo, cambia el radio y filtra verificados", async ({
   page,
 }) => {
