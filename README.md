@@ -130,6 +130,8 @@ de archivo y actualizar sus metadatos para evitar reutilizar la imagen anterior.
 
 El flujo habitual es hacer push a `main` y comprobar el workflow **Deploy Firebase Hosting and Firestore**. El workflow instala con `npm ci`, ejecuta las pruebas, compila con `npm run build` y publica `dist/`. La actualización semanal utiliza la misma acción: el catálogo actualizado se copia a `dist/data/` durante la compilación. Si se modifica la extracción geográfica, el workflow de actualización regenera los polígonos y publica el catálogo antes de activar esta versión.
 
+Cada push a `develop` ejecuta el workflow **Deploy develop to qyp-test**: instala las dependencias, prueba el frontend y las reglas en el emulador, compila Vue y comprueba el explorador en escritorio y móvil antes de publicar `dist/` en **https://qyp-test.web.app/**. También se puede ejecutar manualmente seleccionando `develop` en GitHub Actions. Utiliza `firebase.test.json` y el target `test` de `.firebaserc`, asociado exclusivamente al sitio `qyp-test` del proyecto `quintoyparque`. El sitio debe existir en ese proyecto y la cuenta del secreto `FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE` debe tener permisos de despliegue en Hosting. Este flujo publica solo Hosting; las reglas de Firestore siguen desplegándose desde `main`. Los dos sitios comparten los servicios Firebase del mismo proyecto.
+
 Para un despliegue excepcional desde tu equipo, tras autenticarte con `firebase login`, ejecuta `bash deploy.sh` (o `.\\deploy.ps1` en Windows). Ambos publican primero las reglas y después Hosting.
 
 El archivo `public/data/osm-places.json` debe existir en tu clon del repo. No ejecutes `firebase init`: ya están configurados `firebase.json` y `.firebaserc`.
@@ -139,11 +141,13 @@ El archivo `public/data/osm-places.json` debe existir en tu clon del repo. No ej
 El repositorio actual incluye **frontend, reglas y pruebas de Firestore**. El antiguo [quintoyparque-backend](https://github.com/salime45/quintoyparque-backend) se conserva únicamente como histórico; no es una fuente de despliegues.
 
 - `firebase.json`: Hosting publica `dist/`; Firestore conserva las reglas del mismo proyecto `quintoyparque`.
+- `firebase.test.json` y `.firebaserc`: configuración y destino de Hosting para el sitio de test `qyp-test`.
 - `firestore.rules`: reglas de seguridad para lugares, sugerencias y reseñas.
 - `tests/firestore.rules.test.cjs`: pruebas con el emulador de Firestore.
 - `package.json`: herramientas de tests y Firebase CLI.
 - `.github/actions/deploy-live/action.yml`: prueba frontend y Firestore, **despliega primero las reglas y después Hosting**.
 - `.github/workflows/firebase-hosting-merge.yml`: despliegue a producción en cada push a `main`.
+- `.github/workflows/firebase-hosting-develop.yml`: despliegue de Hosting a `qyp-test` en cada push a `develop`, después de las pruebas y la compilación.
 - `.github/workflows/refresh-osm.yml`: cuando actualiza el catálogo OSM, también despliega reglas antes de Hosting.
 
 En los pull requests se ejecutan las pruebas y se publica solo una preview de Hosting: **no se modifican reglas de producción desde ramas de PR**.
