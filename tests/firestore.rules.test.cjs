@@ -1,5 +1,6 @@
 const { before, after, beforeEach, test } = require("node:test");
 const fs = require("node:fs");
+const assert = require("node:assert/strict");
 const {
   assertFails,
   assertSucceeds,
