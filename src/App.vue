@@ -169,6 +169,7 @@ async function selectedPlace(hit) {
       @review="openReview"
       @promoted="markReviewed"
       @map-click="mapClick"
+      @locate="locate"
     />
   </main>
   <ReviewDialog

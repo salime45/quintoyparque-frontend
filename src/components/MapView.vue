@@ -15,7 +15,7 @@ const props = defineProps({
   revision: Number,
   inert: Boolean,
 });
-const emit = defineEmits(["ready", "review", "promoted", "map-click"]);
+const emit = defineEmits(["ready", "review", "promoted", "map-click", "locate"]);
 const container = ref(null);
 let map, observer, parkLayer, cafeLayer, publishedLayer;
 let markers = new Map(),
@@ -155,6 +155,20 @@ onMounted(() => {
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   }).addTo(map);
+  const locationControl = L.control({ position: "topleft" });
+  locationControl.onAdd = () => {
+    const control = L.DomUtil.create("div", "leaflet-bar qyp-location-control");
+    const button = L.DomUtil.create("button", "qyp-location-button", control);
+    button.type = "button";
+    button.title = "Centrar en mi ubicación";
+    button.setAttribute("aria-label", "Centrar en mi ubicación");
+    button.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>';
+    L.DomEvent.disableClickPropagation(control);
+    L.DomEvent.disableScrollPropagation(control);
+    L.DomEvent.on(button, "click", () => emit("locate"));
+    return control;
+  };
+  locationControl.addTo(map);
   parkLayer = L.layerGroup().addTo(map);
   cafeLayer = L.layerGroup().addTo(map);
   publishedLayer = L.layerGroup().addTo(map);
