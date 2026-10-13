@@ -251,9 +251,9 @@ footer { padding-top: 13px; border-top: 1px solid var(--qyp-border); }
   }
   #exploreMenu.is-open { transform: translateX(0); visibility: visible; box-shadow: 6px 0 24px #302b4033; }
   .mobile-menu-toggle, .mobile-menu-close { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; }
-  .mobile-menu-toggle { min-width: 44px; padding: 8px 10px; }
+  .mobile-menu-toggle { min-width: 44px; padding: 8px 10px; flex: 0 0 44px; margin-left: auto; }
   .mobile-menu-close { min-width: 44px; padding: 8px; }
-  header .toolbar { flex-shrink: 0; gap: 5px; }
+  header .toolbar { flex-shrink: 0; gap: 5px; flex-wrap: nowrap; }
   header .brand { flex-shrink: 1; }
   .brand-logo { min-width: 0; width: min(100%, 230px); }
   .menu-backdrop:not([hidden]) {
