@@ -36,10 +36,10 @@ function setup(legacy = false) {
   return { nodes, document, mobile };
 }
 
-test('Hamburguesa al extremo derecho y activa antes de cargar Leaflet', () => {
+test('Hamburguesa al extremo izquierdo y activa antes de cargar Leaflet', () => {
   const header = html.match(/<header>[\s\S]*?<\/header>/)[0];
-  assert.ok(header.indexOf('id="menuToggle"') > header.indexOf('id="logout"'));
-  assert.match(header, /<\/button><\/header>$/);
+  assert.ok(header.indexOf('id="menuToggle"') < header.indexOf('class="brand"'));
+  assert.match(header, /^<header><button id="menuToggle"/);
   const menuScript = html.match(/<script[^>]*src="\.\/js\/mobile-menu\.js[^"]*"[^>]*><\/script>/)[0];
   assert.ok(!menuScript.includes('defer'));
   assert.ok(html.indexOf(menuScript) < html.indexOf('<script src="https://unpkg.com/leaflet'));
