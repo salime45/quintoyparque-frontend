@@ -79,3 +79,42 @@ test("El módulo inline del mapa contiene JavaScript sintácticamente válido",(
     execFileSync(process.execPath,["--check",script],{stdio:"pipe"});
   }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test("La ficha del bar separa distancia, puntuación y opiniones",()=>{
+  const html=here("public/index.html");
+  const css=here("public/brand/theme.css");
+  assert.ok(html.includes('className="venue-popup__header"'));
+  assert.ok(html.includes('className="venue-popup__title"'));
+  assert.ok(html.includes('className="venue-popup__distance"'));
+  assert.ok(html.includes('className="venue-popup__disclaimer"'));
+  assert.ok(html.includes('className="popup-score"'));
+  assert.ok(html.includes('className="popup-score__number"'));
+  assert.ok(html.includes('className="popup-reviews__heading"'));
+  assert.ok(html.includes('className="popup-review-item"'));
+  assert.ok(html.includes('className="popup-review-item__comment"'));
+  assert.ok(html.includes('button.textContent="Escribir una reseña"'));
+  assert.ok(css.includes(".popup-review-item__heading"));
+  assert.ok(css.includes(".popup-score__metric"));
+  assert.ok(css.includes(".venue-popup__actions"));
+});
+test("Visibilidad y cruce se representan como etiquetas diferenciadas",()=>{
+  const html=here("public/index.html");
+  const css=here("public/brand/theme.css");
+  assert.ok(html.includes('reviewChip(item.parkVisible?"Se ve el parque":"No se ve el parque",item.parkVisible)'));
+  assert.ok(html.includes('reviewChip(item.streetCrossing?"Hay que cruzar una calle":"Sin cruzar calles",!item.streetCrossing)'));
+  assert.ok(css.includes(".popup-review-chip--positive"));
+  assert.ok(css.includes(".popup-review-chip--caution"));
+  assert.ok(html.includes('new Intl.DateTimeFormat("es-ES"'));
+});
+test("Popup adaptado a pantallas móviles, manteniendo el texto seguro",()=>{
+  const html=here("public/index.html");
+  const css=here("public/brand/theme.css");
+  assert.ok(html.includes('className:"qyp-venue-popup",maxWidth:350'));
+  assert.ok(html.includes('maxHeight:Math.max(180,Math.min(445,Math.round(window.innerHeight*.53)-100))'));
+  assert.ok(css.includes(".leaflet-popup.qyp-venue-popup .leaflet-popup-content-wrapper"));
+  assert.ok(css.includes(".leaflet-popup.qyp-venue-popup .leaflet-popup-content.leaflet-popup-scrolled"));
+  assert.ok(css.includes("overflow-wrap: anywhere"));
+  assert.ok(html.includes("comment.textContent=item.comment"));
+  assert.ok(html.includes("title.textContent=safeLabel(venue)"));
+  assert.ok(!html.slice(html.indexOf("function reviewChip"),html.indexOf("async function refreshReviewForm")).includes("innerHTML"));
+});

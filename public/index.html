@@ -223,13 +223,21 @@ function refreshVisibleReviews(venue) {
     void loadVenueReviews(venue,activeReviewContainer);
   }
 }
-function reviewInfoLine(item) {
-  const parts=[
-    "Parque: "+(item.parkName||"Parque infantil"),
-    "Visibilidad: "+(item.parkVisible?"Sí":"No"),
-    "Cruzar calle: "+(item.streetCrossing?"Sí":"No")
-  ];
-  return parts.join(" · ");
+function reviewChip(text,positive) {
+  const chip=document.createElement("span");
+  chip.className="popup-review-chip "+(positive?"popup-review-chip--positive":"popup-review-chip--caution");
+  chip.textContent=text;
+  return chip;
+}
+function reviewDate(item) {
+  const timestamp=item.createdAt;
+  const date=typeof timestamp?.toDate==="function"
+    ?timestamp.toDate()
+    :typeof timestamp?.seconds==="number"
+      ?new Date(timestamp.seconds*1000):null;
+  return date instanceof Date && Number.isFinite(date.getTime())
+    ?new Intl.DateTimeFormat("es-ES",{day:"numeric",month:"short",year:"numeric"}).format(date)
+    :"";
 }
 async function loadVenueReviews(venue,container) {
   if(!db){container.textContent="Las reseñas no están disponibles.";return;}
@@ -242,35 +250,91 @@ async function loadVenueReviews(venue,container) {
     if(!container.isConnected)return;
     container.replaceChildren();
     if(snap.empty){
-      container.textContent="Todavía no hay reseñas publicadas.";
+      const empty=document.createElement("p");
+      empty.className="popup-review-empty";
+      empty.textContent="Todavía no hay opiniones. ¡Sé el primero!";
+      container.append(empty);
       return;
     }
     const approved=snap.docs.map(x=>x.data()).sort((a,b)=>
       (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-    const avg=(approved.reduce((sum,r)=>sum+r.rating,0)/approved.length).toFixed(1).replace(".",",");
-    const summary=document.createElement("p");
-    summary.className="popup-review-summary";
-    summary.textContent=avg+" / 5 ★ · "+approved.length+" reseña"+(approved.length===1?"":"s")+" publicada"+(approved.length===1?"":"s");
+    const average=approved.reduce((sum,item)=>sum+item.rating,0)/approved.length;
+    const summary=document.createElement("div");
+    summary.className="popup-score";
+    const label=document.createElement("span");
+    label.className="popup-score__label";
+    label.textContent="Valoración de la comunidad";
+    const metric=document.createElement("div");
+    metric.className="popup-score__metric";
+    const number=document.createElement("strong");
+    number.className="popup-score__number";
+    number.textContent=average.toFixed(1).replace(".",",");
+    const outOf=document.createElement("span");
+    outOf.className="popup-score__out-of";
+    outOf.textContent="/ 5";
+    const rating=document.createElement("span");
+    rating.className="popup-score__stars";
+    rating.textContent=stars(Math.round(average));
+    rating.setAttribute("aria-label",average.toFixed(1).replace(".",",")+" de 5 estrellas");
+    rating.setAttribute("role","img");
+    metric.append(number,outOf,rating);
+    const count=document.createElement("span");
+    count.className="popup-score__count";
+    count.textContent=approved.length+" "+(approved.length===1?"opinión":"opiniones");
+    summary.append(label,metric,count);
     container.append(summary);
+
+    const reviewsHeading=document.createElement("h4");
+    reviewsHeading.className="popup-reviews__heading";
+    reviewsHeading.textContent="Opiniones recientes";
+    container.append(reviewsHeading);
+
     for(const item of approved.slice(0,3)){
-      const block=document.createElement("div");
+      const block=document.createElement("article");
       block.className="popup-review-item";
-      const rating=document.createElement("strong");
+      const heading=document.createElement("div");
+      heading.className="popup-review-item__heading";
+      const rating=document.createElement("span");
+      rating.className="popup-review-item__stars";
       rating.textContent=stars(item.rating);
-      const meta=document.createElement("p");
-      meta.className="small";
-      meta.textContent=reviewInfoLine(item);
-      block.append(rating,meta);
+      rating.setAttribute("role","img");
+      rating.setAttribute("aria-label",item.rating+" de 5 estrellas");
+      heading.append(rating);
+      const created=reviewDate(item);
+      if(created){
+        const date=document.createElement("time");
+        date.className="popup-review-item__date";
+        date.textContent=created;
+        if(item.createdAt?.toDate){
+          date.dateTime=item.createdAt.toDate().toISOString().slice(0,10);
+        }
+        heading.append(date);
+      }
+      const flags=document.createElement("div");
+      flags.className="popup-review-flags";
+      flags.append(
+        reviewChip(item.parkVisible?"Se ve el parque":"No se ve el parque",item.parkVisible),
+        reviewChip(item.streetCrossing?"Hay que cruzar una calle":"Sin cruzar calles",!item.streetCrossing)
+      );
+      block.append(heading,flags);
+      if(item.parkName && item.parkName!=="Parque infantil"){
+        const parkNote=document.createElement("p");
+        parkNote.className="popup-review-item__park";
+        parkNote.textContent="Parque: "+item.parkName;
+        block.append(parkNote);
+      }
       if(item.comment){
         const comment=document.createElement("p");
+        comment.className="popup-review-item__comment";
         comment.textContent=item.comment;
         block.append(comment);
       }
       container.append(block);
     }
     if(approved.length>3){
-      const more=document.createElement("p");more.className="small";
-      more.textContent="Mostrando las 3 reseñas más recientes.";
+      const more=document.createElement("p");
+      more.className="popup-review-more";
+      more.textContent="Mostrando las 3 opiniones más recientes.";
       container.append(more);
     }
   }catch(error){
@@ -281,21 +345,55 @@ async function loadVenueReviews(venue,container) {
 function venuePopup(venue,distanceToPark,park) {
   const root=document.createElement("section");
   root.className="venue-popup";
-  const title=document.createElement("strong");
+  const header=document.createElement("div");
+  header.className="venue-popup__header";
+  const brand=document.createElement("span");
+  brand.className="venue-popup__brand";
+  brand.setAttribute("aria-hidden","true");
+  const icon=document.createElement("img");
+  icon.src="./brand/beer-marker.svg";
+  icon.alt="";
+  icon.width=23;
+  icon.height=30;
+  brand.append(icon);
+  const titleGroup=document.createElement("div");
+  titleGroup.className="venue-popup__title-group";
+  const title=document.createElement("h3");
+  title.className="venue-popup__title";
   title.textContent=safeLabel(venue);
-  const detail=document.createElement("p");
-  detail.textContent=distanceToPark+" m de "+safeLabel(park)+" (línea recta, sin verificar)";
-  const button=document.createElement("button");
-  button.type="button";
-  button.textContent="Dejar reseña";
-  button.className="popup-review-btn";
-  button.onclick=()=>openReview(venue,park);
+  const category=document.createElement("span");
+  category.className="venue-popup__category";
+  category.textContent=({bar:"Bar",cafe:"Cafetería",restaurant:"Restaurante"})[venue.tags?.amenity]||"Local";
+  titleGroup.append(title,category);
+  header.append(brand,titleGroup);
+
+  const distance=document.createElement("div");
+  distance.className="venue-popup__distance";
+  const distanceValue=document.createElement("strong");
+  distanceValue.textContent=distanceToPark+" m";
+  const parkLabel=document.createElement("span");
+  parkLabel.textContent="del "+safeLabel(park);
+  distance.append(distanceValue,parkLabel);
+  const disclaimer=document.createElement("p");
+  disclaimer.className="venue-popup__disclaimer";
+  disclaimer.textContent="Distancia en línea recta · Terraza sin verificar";
+
   const reviews=document.createElement("div");
   reviews.className="popup-reviews";
-  reviews.textContent="Cargando reseñas…";
+  reviews.setAttribute("aria-live","polite");
+  reviews.textContent="Cargando opiniones…";
   activeReviewContainer=reviews;
   activeReviewVenueKey=osmVenueKey(venue);
-  root.append(title,detail,button,reviews);
+  const actions=document.createElement("div");
+  actions.className="venue-popup__actions";
+  const button=document.createElement("button");
+  button.type="button";
+  button.textContent="Escribir una reseña";
+  button.className="popup-review-btn";
+  button.onclick=()=>openReview(venue,park);
+  actions.append(button);
+
+  root.append(header,distance,disclaimer,reviews,actions);
   void loadVenueReviews(venue,reviews);
   return root;
 }
@@ -387,7 +485,7 @@ function render(){
 parkLayer.clearLayers();cafeLayer.clearLayers();parkMarkers=new Map();cafeMarkers=new Map();
 for(const p of parks){const c=coords(p),count=visiblePairs?.parkVenueCounts.get(p.id)||0,m=L.marker([c.lat,c.lon],{icon:parkBrandIcon,title:safeLabel(p)}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+count+" locales a menos de 150 m (sin verificar)");parkMarkers.set(p.id,m);if($("onlyParks").checked)m.addTo(parkLayer);}
 const scored=cafes.map(o=>({...o,dist:visiblePairs?.venueDistances.get(o.id)??null})).filter(o=>o.dist!=null && o.dist<=150).sort((a,b)=>a.dist-b.dist);
-for(const p of scored){const c=coords(p),park=visiblePairs.nearestParkByVenue.get(p.id),m=L.marker([c.lat,c.lon],{icon:venueBrandIcon,title:safeLabel(p)}).bindPopup(()=>venuePopup(p,p.dist,park),{maxWidth:300});cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
+for(const p of scored){const c=coords(p),park=visiblePairs.nearestParkByVenue.get(p.id),m=L.marker([c.lat,c.lon],{icon:venueBrandIcon,title:safeLabel(p)}).bindPopup(()=>venuePopup(p,p.dist,park),{className:"qyp-venue-popup",maxWidth:350,minWidth:Math.min(300,window.innerWidth-84),maxHeight:Math.max(180,Math.min(445,Math.round(window.innerHeight*.53)-100))});cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
 const root=$("results");root.replaceChildren();$("heading").textContent="Locales a "+$("radius").value+" m de un parque ("+scored.length+")";
 for(const p of scored.slice(0,35)){const article=document.createElement("article");const h=document.createElement("h3");h.textContent=safeLabel(p);article.append(h);const note=document.createElement("p");note.textContent=p.dist+" metros del parque más cercano · Pendiente de verificar terraza y visibilidad";article.append(note);
 const button=document.createElement("button");button.className="secondary";button.textContent="Ver en mapa";button.onclick=()=>showPlace(p,"cafe");const a=document.createElement("a");const c=coords(p);a.href="https://www.openstreetmap.org/?mlat="+c.lat+"&mlon="+c.lon+"#map=18/"+c.lat+"/"+c.lon;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir ubicación";const row=document.createElement("div");row.className="actions";const reviewButton=document.createElement("button");reviewButton.className="secondary";reviewButton.textContent="Dejar reseña";reviewButton.onclick=()=>openReview(p,visiblePairs.nearestParkByVenue.get(p.id));row.append(button,reviewButton,a);article.append(row);root.append(article);}
