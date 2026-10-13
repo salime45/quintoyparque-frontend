@@ -61,30 +61,33 @@ export function buildProximityIndex(elements, radiusMeters=150) {
 }
 
 
-// Un enlace auditado entre un local y una zona de juegos del MISMO parque
-// puede incluirse incluso cuando se supera el radio de proximidad. Esto evita
-// perder cafeterías dentro de grandes parques urbanos. Son vínculos puntuales
-// documentados y no se extrapolan a otros locales ni a parques cercanos.
-// Un local normal sigue exigiendo distancia <= radio y parque visible.
-export function filterVisiblePairs(elements, index, isVisible, radiusMeters=150, sameParkLinks=[]) {
-  if(!Array.isArray(elements) || typeof isVisible!=="function" ||
-      !index?.parkIds || !index?.venueDistances || !Array.isArray(sameParkLinks)) {
-    throw new TypeError("Catálogo o índice incorrectos");
+/**
+ * Muestra pares visibles de zonas infantiles y locales. Además de la distancia
+ * recta, admite pertenencia automática al MISMO recinto (leisure=park/garden)
+ * calculada con los polígonos OSM al regenerar el snapshot.
+ *
+ * No se almacenan excepciones ni IDs escritos a mano. Las geometrías se
+ * validan previamente en el servidor; aquí solo se consumen sus asociaciones.
+ */
+export function filterVisiblePairs(elements, index, isVisible, radiusMeters=150, parkMatches=[]) {
+  if(!Array.isArray(elements)||typeof isVisible!=="function"||
+     !index?.parkIds||!index?.venueDistances||!Array.isArray(parkMatches)){
+    throw new TypeError("Catálogo, índice o límites de parque incorrectos");
   }
   if(!Number.isFinite(radiusMeters)||radiusMeters<=0)throw new RangeError("Radio no válido");
-  const knownParks=new Map(elements.filter(x=>valid(x)&&isPark(x)).map(x=>[x.id,x]));
+  const knownPlaygrounds=new Map(elements.filter(x=>valid(x)&&isPark(x)).map(x=>[x.id,x]));
   const knownVenues=new Map(elements.filter(x=>valid(x)&&isVenue(x)).map(x=>[x.id,x]));
-  const links=new Map();
-  for(const link of sameParkLinks){
-    if(!link || typeof link.venueId!=="string" || typeof link.playgroundId!=="string" ||
-        !knownParks.has(link.playgroundId) || !knownVenues.has(link.venueId))continue;
-    links.set(link.venueId,link);
+  const membership=new Map();
+  for(const match of parkMatches){
+    if(typeof match?.venueId!=="string"||typeof match.playgroundId!=="string"||
+       !knownVenues.has(match.venueId)||!knownPlaygrounds.has(match.playgroundId))continue;
+    membership.set(match.venueId,match);
   }
-  const linkedParkIds=new Set([...links.values()].map(x=>x.playgroundId));
-  const parkCandidates=[...knownParks.values()].filter(p=>
-    isVisible(p)&&(index.parkIds.has(p.id)||linkedParkIds.has(p.id)));
-  const venueCandidates=[...knownVenues.values()].filter(v=>
-    isVisible(v)&&(index.venueDistances.has(v.id)||links.has(v.id)));
+  const linkedPlaygroundIds=new Set([...membership.values()].map(m=>m.playgroundId));
+  const candidatesP=[...knownPlaygrounds.values()].filter(p=>
+    isVisible(p)&&(index.parkIds.has(p.id)||linkedPlaygroundIds.has(p.id)));
+  const candidatesV=[...knownVenues.values()].filter(v=>
+    isVisible(v)&&(index.venueDistances.has(v.id)||membership.has(v.id)));
   const selectedParks=new Set();
   const parkVenueCounts=new Map();
   const venueDistances=new Map();
@@ -92,39 +95,37 @@ export function filterVisiblePairs(elements, index, isVisible, radiusMeters=150,
   const sameParkVenueIds=new Set();
   const sameParkNames=new Map();
   const venues=[];
-  for(const venue of venueCandidates){
+  const visibleParkIds=new Set(candidatesP.map(p=>p.id));
+  for(const venue of candidatesV){
     let closest=null,best=Infinity;
-    for(const park of parkCandidates){
+    const counted=new Set();
+    for(const park of candidatesP){
       const d=distanceMeters(venue,park);
       if(d>radiusMeters)continue;
-      selectedParks.add(park.id);
-      parkVenueCounts.set(park.id,(parkVenueCounts.get(park.id)||0)+1);
+      counted.add(park.id);
       if(d<best){closest=park;best=d;}
     }
-    const link=links.get(venue.id);
-    // Si el parque es grande, su zona infantil puede quedar fuera del viewport.
-    // Solo se permite esto cuando la pertenencia al MISMO parque fue documentada.
-    if(link){
+    const membershipRecord=membership.get(venue.id);
+    if(membershipRecord){
+      // Mostrar la zona infantil asociada con el polígono, incluso cuando
+      // existe otra más próxima al otro lado de una calle.
+      closest=knownPlaygrounds.get(membershipRecord.playgroundId);
+      best=distanceMeters(venue,closest);
       sameParkVenueIds.add(venue.id);
-      sameParkNames.set(venue.id,link.parkName||"el mismo parque");
-      if(!closest){
-        closest=knownParks.get(link.playgroundId);
-        best=distanceMeters(venue,closest);
-        if(parkCandidates.some(p=>p.id===closest.id)){
-          selectedParks.add(closest.id);
-          parkVenueCounts.set(closest.id,(parkVenueCounts.get(closest.id)||0)+1);
-        }
-      }
+      sameParkNames.set(venue.id,membershipRecord.parkName||"Parque");
+      if(visibleParkIds.has(closest.id))counted.add(closest.id);
     }
-    if(closest){
-      const displayName=link?.displayName;
-      venues.push(displayName && !venue.tags?.name ? {...venue,displayName} : venue);
-      nearestParkByVenue.set(venue.id,closest);
-      venueDistances.set(venue.id,Math.round(best));
+    if(!closest)continue;
+    for(const parkId of counted){
+      selectedParks.add(parkId);
+      parkVenueCounts.set(parkId,(parkVenueCounts.get(parkId)||0)+1);
     }
+    venues.push(venue);
+    nearestParkByVenue.set(venue.id,closest);
+    venueDistances.set(venue.id,Math.round(best));
   }
   return {
-    parks:parkCandidates.filter(p=>selectedParks.has(p.id)),
+    parks:candidatesP.filter(p=>selectedParks.has(p.id)),
     venues,venueDistances,nearestParkByVenue,parkVenueCounts,
     sameParkVenueIds,sameParkNames
   };

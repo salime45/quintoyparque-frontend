@@ -32,10 +32,14 @@ runs:
         node - <<'NODE'
         const fs=require('node:fs');
         const data=JSON.parse(fs.readFileSync('public/data/osm-places.json','utf8'));
-        if(data.schemaVersion!==1 || data.license!=='ODbL' || !data.coverage ||
-          !Array.isArray(data.elements)||data.elements.length<200)
+        if(data.schemaVersion!==2 || data.license!=='ODbL' || !data.coverage ||
+          !Array.isArray(data.elements)||data.elements.length<200 ||
+          !Number.isInteger(data.parkAreaCount)||data.parkAreaCount<50 ||
+          !Array.isArray(data.parkMatches)||data.parkMatches.length<1)
           throw Error('Catálogo OpenStreetMap incompleto');
-        console.log('OK: '+data.elements.length+' ubicaciones');
+        console.log('OK: '+data.elements.length+' ubicaciones, '+
+          data.parkAreaCount+' zonas delimitadas y '+data.parkMatches.length+
+          ' parejas detectadas dentro del mismo parque');
         NODE
     - name: Authenticate Firebase CLI for Firestore rules
       uses: google-github-actions/auth@v3

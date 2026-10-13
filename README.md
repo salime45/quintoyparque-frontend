@@ -7,8 +7,9 @@ Web móvil para encontrar cafeterías, bares y restaurantes cerca de parques inf
 La aplicación **no hace consultas a Overpass desde el navegador** y **los despliegues ordinarios tampoco necesitan Overpass**.
 
 - [`public/data/osm-places.json`](public/data/osm-places.json): archivo versionado con ubicaciones de OpenStreetMap (parques y locales). Incluye fecha, cobertura y licencia.
-- [`public/index.html`](public/index.html): lee el JSON a través de Firebase Hosting (`/data/osm-places.json`) y calcula los establecimientos cercanos a los parques, con distancias configurables de 60, 100 o 150 metros en línea recta (también admite cafeterías documentadas dentro del mismo parque).
-- [`scripts/refresh-osm.mjs`](scripts/refresh-osm.mjs): obtiene datos de Overpass **solo** al actualizar el catálogo.
+- [`public/index.html`](public/index.html): lee el JSON a través de Firebase Hosting (`/data/osm-places.json`) y calcula los establecimientos cercanos a los parques, con distancias configurables de 60, 100 o 150 metros en línea recta, además de incluir automáticamente locales situados dentro del mismo parque que una zona infantil.
+- [`scripts/refresh-osm.mjs`](scripts/refresh-osm.mjs): descarga lugares y polígonos OSM de parques y jardines al actualizar el catálogo.
+- [`scripts/osm-park-geometry.mjs`](scripts/osm-park-geometry.mjs): determina automáticamente qué cafeterías y zonas infantiles están dentro de la misma geometría, sin listas manuales. El navegador recibe solo los emparejamientos calculados.
 - [`.github/workflows/refresh-osm.yml`](.github/workflows/refresh-osm.yml): actualiza semanalmente (lunes, 04:20 UTC) o al ejecutarlo manualmente, valida el JSON, crea un commit en `main` si cambian las ubicaciones y publica las reglas de Firestore seguidas de Hosting. Si falla Overpass, conserva el catálogo versionado.
 - [`.github/workflows/firebase-hosting-merge.yml`](.github/workflows/firebase-hosting-merge.yml): prueba y despliega reglas de Firestore y luego Hosting en cada push a `main`, sin descargar datos externos.
 - [`.github/workflows/firebase-hosting-pull-request.yml`](.github/workflows/firebase-hosting-pull-request.yml): utiliza el mismo catálogo versionado en las vistas previas de PR.
@@ -21,31 +22,35 @@ Los commits hechos por `GITHUB_TOKEN` no lanzan otros workflows de `push`, por e
 
 ### Cobertura
 
-El catálogo inicial contiene 1.446 parques infantiles y 3.138 locales (4.584 ubicaciones) de Valencia y su entorno. No significa que todos los bares tengan terraza, ni que sea visible el parque desde ella. La cobertura se limita a un rectángulo aproximado de latitud 39.28–39.67 y longitud -0.62–-0.20. Estos números cambiarán en futuras actualizaciones.
+El catálogo de partida contiene aproximadamente 1.450 zonas infantiles y 3.150 locales en Valencia y alrededores. No significa que todos los bares tengan terraza, ni que sea visible el parque desde ella. La cobertura se limita a un rectángulo aproximado de latitud 39.28–39.67 y longitud -0.62–-0.20. Estos números cambiarán en futuras actualizaciones.
 
 **Créditos y licencia:** © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/). Los datos de ubicaciones redistribuidos conservan su atribución y licencia. Si se publica una base derivada, revisar los requisitos de la ODbL.
 
-## Cafeterías dentro del mismo parque
+## Detección automática de locales dentro del mismo parque
 
-El radio de búsqueda por defecto es **60 m de una zona infantil**. Para evitar perder
-cafeterías que se encuentran **dentro del mismo parque urbano** que una zona de
-juegos, aunque queden más lejos de 60 m, hay excepciones documentadas en
-[`public/data/park-venue-links.json`](public/data/park-venue-links.json).
-Cada entrada une un nodo OSM de cafetería con un área infantil OSM del mismo
-parque y contiene una fuente, sin considerarse «verificada» por ello.
-La distancia real hasta la zona infantil sigue mostrándose en el mapa, junto
-a la advertencia sobre visibilidad y terraza no comprobadas.
+El radio predeterminado es de **60 m de una zona infantil**, ampliable a 100 y
+150 m. Además, la actualización semanal de OpenStreetMap descarga los **límites
+geográficos de parques y jardines** (`leisure=park` y `leisure=garden`).
+Si un bar/cafetería y una zona infantil pertenecen al **mismo recinto poligonal**,
+se vinculan automáticamente sin importar la distancia entre ambos.
 
-El primer caso comunicado corresponde a una cafetería sin nombre en OSM
-dentro del Parc de Marxalenes. Cuando se comunique otra ubicación, añadirla
-a ese archivo **solo después de confirmar que ambos elementos pertenecen al
-mismo parque**. No ampliar por defecto el radio global a 150 m: generaría
-locales alejados o separados por calles.
+El proceso admite polígonos complejos, agujeros y relaciones multipolígono,
+sin mezclar componentes disjuntos del mismo parque. Los establecimientos
+situados fuera de esos recintos siguen sujetos al radio elegido. La web
+muestra la distancia real hasta la zona infantil y advierte que la
+visibilidad desde la terraza no está verificada.
+
+Los emparejamientos se generan en `public/data/osm-places.json` (`schemaVersion:
+2`, `parkMatches`) a partir de datos OSM durante cada actualización. No existe
+ningún archivo de excepciones manuales ni nombres de locales codificados.
+Si en OSM falta el perímetro o la ubicación de un lugar, la detección depende
+del radio de proximidad habitual. La actualización conserva el catálogo anterior
+si Overpass devuelve datos incompletos.
 
 ## Funcionalidades
 
 - Mapa Leaflet/OpenStreetMap, geolocalización opcional y filtros.
-- Solo se muestran parejas parque-establecimiento a menos de 60 metros por defecto (ampliable a 100 o 150 metros); ambos puntos deben estar visibles en el mapa.
+- Se muestran parejas parque-establecimiento a menos de 60 metros por defecto (ampliable a 100 o 150 metros), y también locales dentro del mismo recinto OSM con zona infantil aunque esta quede fuera de la vista.
 - Datos OSM versionados y disponibles incluso cuando los servidores Overpass fallan.
 - Distinción entre locales candidatos no verificados y lugares publicados desde Firestore.
 - Acceso Google para proponer sitios, pendientes de moderación.
@@ -67,7 +72,7 @@ Los locales de OpenStreetMap se reconocen por su ID estable, por ejemplo `node/1
 
 ## Despliegue
 
-El flujo habitual es hacer push a `main` y comprobar el workflow **Deploy to Firebase Hosting on merge**.
+El flujo habitual es hacer push a `main` y comprobar el workflow **Deploy Firebase Hosting and Firestore**. Si se modifica la extracción geográfica, el workflow de actualización regenera los polígonos y publica el catálogo antes de activar esta versión.
 
 Para un despliegue excepcional desde tu equipo, tras autenticarte con `firebase login`, ejecuta `bash deploy.sh` (o `.\\deploy.ps1` en Windows). Ambos publican primero las reglas y después Hosting.
 

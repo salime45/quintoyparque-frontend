@@ -8,6 +8,9 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/refresh-osm.yml"
+      - "scripts/refresh-osm.mjs"
+      - "scripts/osm-park-geometry.mjs"
+      - "tests/osm-park-geometry.test.mjs"
   workflow_dispatch:
   schedule:
     - cron: "20 4 * * 1"
@@ -32,6 +35,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Test geometry and park containment
+        run: node --test tests/osm-park-geometry.test.mjs
       - name: Download OpenStreetMap catalogue
         run: node scripts/refresh-osm.mjs
       - name: Validate snapshot before committing
@@ -41,12 +46,16 @@ jobs:
           const x = JSON.parse(fs.readFileSync("public/data/osm-places.json", "utf8"));
           const parks = x.elements.filter(e => e.tags?.leisure === "playground");
           const venues = x.elements.filter(e => ["cafe","bar","restaurant"].includes(e.tags?.amenity));
-          if (x.schemaVersion !== 1 || x.license !== "ODbL" || !x.coverage ||
-              parks.length < 50 || venues.length < 50) {
+          if (x.schemaVersion !== 2 || x.license !== "ODbL" || !x.coverage ||
+              parks.length < 50 || venues.length < 50 ||
+              !Number.isInteger(x.parkAreaCount) || x.parkAreaCount < 50 ||
+              !Array.isArray(x.parkMatches) || x.parkMatches.length < 1) {
             console.error("Datos incompletos; no se actualizará el catálogo.");
             process.exit(1);
           }
-          console.log("Catálogo válido:", parks.length, "parques,", venues.length, "locales");
+          console.log("Catálogo válido:",parks.length,"áreas infantiles,",
+            venues.length,"locales,",x.parkAreaCount,"polígonos,",
+            x.parkMatches.length,"asociaciones automáticas");
           '
       - name: Commit updated catalogue
         id: commit
