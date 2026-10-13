@@ -1,6 +1,6 @@
 # Quinto y Parque · Frontend
 
-Web móvil para encontrar cafeterías, bares y restaurantes cerca de parques infantiles en Valencia. Proyecto Firebase: `quintoyparque` · [Web](https://quintoyparque.web.app/).
+Web móvil para encontrar cafeterías, bares, restaurantes y locales de comida rápida cerca de parques infantiles en Valencia. Proyecto Firebase: `quintoyparque` · [Web](https://quintoyparque.web.app/).
 
 ## Datos geográficos (versionados en GitHub)
 
@@ -22,9 +22,11 @@ Los commits hechos por `GITHUB_TOKEN` no lanzan otros workflows de `push`, por e
 
 ### Cobertura
 
-El catálogo de partida contiene aproximadamente 1.450 zonas infantiles y 3.150 locales en Valencia y alrededores. No significa que todos los bares tengan terraza, ni que sea visible el parque desde ella. La cobertura se limita a un rectángulo aproximado de latitud 39.28–39.67 y longitud -0.62–-0.20. Estos números cambiarán en futuras actualizaciones.
+El catálogo inicial contenía aproximadamente 1.450 zonas infantiles y 3.150 locales; la importación actual también recoge establecimientos OSM etiquetados como `amenity=fast_food` (por ejemplo, bocadillerías y cadenas de comida rápida) en Valencia y alrededores. No significa que todos los bares tengan terraza, ni que sea visible el parque desde ella. La cobertura se limita a un rectángulo aproximado de latitud 39.28–39.67 y longitud -0.62–-0.20. Estos números cambiarán en futuras actualizaciones.
 
 **Créditos y licencia:** © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/). Los datos de ubicaciones redistribuidos conservan su atribución y licencia. Si se publica una base derivada, revisar los requisitos de la ODbL.
+
+El importador incluye `amenity=cafe`, `amenity=bar`, `amenity=restaurant` y `amenity=fast_food`. Un sitio solo puede mostrarse si la ubicación está registrada en OSM (o está publicado por la comunidad en Firestore) y cumple el criterio geográfico; esta ampliación no inventa bares ausentes de la fuente de datos.
 
 ## Buscador de texto
 

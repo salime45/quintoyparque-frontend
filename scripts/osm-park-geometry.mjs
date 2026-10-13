@@ -13,7 +13,7 @@ const near = (a,b) => Math.abs(a[0]-b[0]) <= EPS && Math.abs(a[1]-b[1]) <= EPS;
 const point = p => isNumber(p?.lat) && isNumber(p?.lon);
 const isParkArea = tags => ["park","garden"].includes(tags?.leisure);
 const isPlayground = o => o?.tags?.leisure === "playground";
-const isVenue = o => ["cafe","bar","restaurant"].includes(o?.tags?.amenity);
+const isVenue = o => ["cafe","bar","restaurant","fast_food"].includes(o?.tags?.amenity);
 const distance = (a,b) => 111195 * Math.hypot(
   a.lat-b.lat, (a.lon-b.lon)*Math.cos((a.lat+b.lat)*Math.PI/360)
 );

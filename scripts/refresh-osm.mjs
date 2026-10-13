@@ -34,7 +34,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function buildQuery([south, west, north, east]) {
   const box = [south, west, north, east].join(",");
   return '[out:json][timeout:50];(nwr["leisure"="playground"](' + box +
-    ');nwr["amenity"~"^(cafe|bar|restaurant)$"](' + box + '););out center;';
+    ');nwr["amenity"~"^(cafe|bar|restaurant|fast_food)$"](' + box + '););out center;';
 }
 // Límites OSM de parques y jardines, que se usan solo en el proceso de
 // importación para calcular pertenencia espacial; el navegador no recibe
@@ -52,7 +52,7 @@ function normalize(el) {
       !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   const tags = el.tags || {};
   const isPark = tags.leisure === "playground";
-  const isVenue = ["cafe", "bar", "restaurant"].includes(tags.amenity);
+  const isVenue = ["cafe", "bar", "restaurant", "fast_food"].includes(tags.amenity);
   if (!isPark && !isVenue) return null;
 
   const cleanTags = {};
@@ -97,7 +97,7 @@ function validateSnapshot(snapshot) {
     throw Error("Snapshot OSM incompleto o inválido");
   }
   const parks = snapshot.elements.filter((x) => x.tags?.leisure === "playground").length;
-  const venues = snapshot.elements.filter((x) => ["cafe", "bar", "restaurant"].includes(x.tags?.amenity)).length;
+  const venues = snapshot.elements.filter((x) => ["cafe", "bar", "restaurant", "fast_food"].includes(x.tags?.amenity)).length;
   if (parks < 50 || venues < 50) throw Error("Dataset sospechosamente pequeño: " + parks + " parques / " + venues + " locales");
   if(snapshot.schemaVersion===2){
     if(!Number.isInteger(snapshot.parkAreaCount)||snapshot.parkAreaCount<50 ||
@@ -177,7 +177,7 @@ async function main() {
     if (previous) {
       const count = (data, condition) => data.elements.filter(condition).length;
       const isPark = (item) => item.tags?.leisure === "playground";
-      const isVenue = (item) => ["cafe","bar","restaurant"].includes(item.tags?.amenity);
+      const isVenue = (item) => ["cafe","bar","restaurant","fast_food"].includes(item.tags?.amenity);
       if (count(snapshot, isPark) < count(previous, isPark) * 0.75 ||
           count(snapshot, isVenue) < count(previous, isVenue) * 0.75 ||
           (previous.schemaVersion===2 &&

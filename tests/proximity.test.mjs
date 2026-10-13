@@ -14,16 +14,17 @@ test("Oculta parques que no tienen establecimientos a 150 m",()=>{
   assert.equal(result.parkVenueCounts.get("p1"),1);
   assert.equal(result.parkVenueCounts.has("p2"),false);
 });
-test("Cuenta bares, cafeterías y restaurantes, sin contar locales lejanos",()=>{
+test("Cuenta bares, cafeterías, restaurantes y comida rápida, sin contar locales lejanos",()=>{
   const result=buildProximityIndex([
     park("p",39.47),
     venue("bar",39.4702,-0.38,"bar"),
     venue("cafe",39.4701,-0.38,"cafe"),
     venue("restaurant",39.4703,-0.38,"restaurant"),
+    venue("fast_food",39.47015,-0.38,"fast_food"),
     venue("far",39.485,-0.38,"bar"),
   ]);
-  assert.equal(result.parkVenueCounts.get("p"),3);
-  assert.equal(result.venueDistances.size,3);
+  assert.equal(result.parkVenueCounts.get("p"),4);
+  assert.equal(result.venueDistances.size,4);
   assert.equal(result.venueDistances.has("far"),false);
 });
 test("Respeta el límite de 150 metros",()=>{

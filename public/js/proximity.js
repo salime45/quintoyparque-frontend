@@ -9,7 +9,7 @@ const METERS_PER_DEGREE_LAT = 111195;
 const REFERENCE_LATITUDE = 39.47; // Valencia
 const METERS_PER_DEGREE_LON = METERS_PER_DEGREE_LAT * Math.cos(REFERENCE_LATITUDE * RADIANS);
 const isPark = item => item?.tags?.leisure === "playground";
-const isVenue = item => ["bar", "cafe", "restaurant"].includes(item?.tags?.amenity);
+const isVenue = item => ["bar", "cafe", "restaurant", "fast_food"].includes(item?.tags?.amenity);
 const valid = item => item && item.id != null &&
   Number.isFinite(item.lat) && Number.isFinite(item.lon);
 function distanceMeters(a,b) {

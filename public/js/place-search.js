@@ -5,7 +5,7 @@
  */
 import {filterVisiblePairs} from "./proximity.js";
 
-const types={bar:"Bar",cafe:"Cafetería",restaurant:"Restaurante"};
+const types={bar:"Bar",cafe:"Cafetería",restaurant:"Restaurante",fast_food:"Comida rápida"};
 const isValid=o=>o && typeof o.id==="string" &&
   Number.isFinite(o.lat) && Number.isFinite(o.lon);
 

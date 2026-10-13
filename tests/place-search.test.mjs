@@ -39,6 +39,17 @@ test("Busca locales por nombre con o sin tildes en todo el catálogo",()=>{
   assert.equal(findPlaces(c,"EL PRADO")[0].place.id,"v-bar");
   assert.equal(findPlaces(c,"zzzsincoincidencias").length,0);
 });
+test("Incluye locales etiquetados en OSM como fast_food cerca de zonas infantiles",()=>{
+  const placesFast=[
+    playground("p-fast",39.47,-0.38),
+    venue("100m-gayano",39.4701,-0.38,"100 Montaditos","fast_food","Carrer de Gayano Lluch")
+  ];
+  const index=buildProximityIndex(placesFast,150);
+  const catalog=buildPlaceSearchCatalog(placesFast,index,[],60);
+  assert.equal(findPlaces(catalog,"100 Montaditos")[0].place.id,"100m-gayano");
+  assert.equal(findPlaces(catalog,"Gayano Lluch")[0].place.id,"100m-gayano");
+  assert.ok(findPlaces(catalog,"100")[0].subtitle.includes("Comida rápida"));
+});
 test("Busca por calle aunque aparezca en un barrio distinto al visible",()=>{
   const results=findPlaces(makeCatalog(),"Angel Guimera");
   assert.equal(results.length,1);

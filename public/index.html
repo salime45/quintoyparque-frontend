@@ -16,7 +16,7 @@
 <p class="eyebrow">Valencia y alrededores</p>
 <p class="hero-title">Tu terraza favorita.<br><span>Su parque ideal.</span></p>
 </div></div><div class="toolbar"><span id="account" class="small" style="color:white"></span><button id="myReviews" class="secondary my-reviews-button" type="button" aria-label="Mis reseñas" hidden><span aria-hidden="true">★</span><span class="my-reviews-label">Mis reseñas</span></button><button id="login" class="secondary" aria-label="Acceder con Google" hidden>Entrar</button><button id="logout" class="secondary" hidden>Salir</button></div></header>
-<main><aside><h2 style="margin:0">Explora el mapa</h2><p class="small">Encuentra bares, cafeterías y restaurantes próximos a parques infantiles, incluidos los que están <strong>dentro del mismo parque</strong>. La distancia se mide en línea recta: la cercanía no garantiza visibilidad desde la terraza.</p>
+<main><aside><h2 style="margin:0">Explora el mapa</h2><p class="small">Encuentra bares, cafeterías, restaurantes y locales de comida rápida próximos a parques infantiles, incluidos los que están <strong>dentro del mismo parque</strong>. La distancia se mide en línea recta: la cercanía no garantiza visibilidad desde la terraza.</p>
 <div class="place-search" role="search" aria-label="Buscar lugares en Valencia">
   <label for="placeSearch">¿Qué sitio buscas?</label>
   <div class="place-search__field">
@@ -149,7 +149,7 @@ $("login").onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>a
 $("logout").onclick=()=>signOut(auth);
 const status=t=>$("status").textContent=t;
 const safeLabel=o=>o.tags?.name||(o.tags?.leisure==="playground"
-  ?"Parque infantil":({cafe:"Cafetería sin nombre",bar:"Bar sin nombre",restaurant:"Restaurante sin nombre"})[o.tags?.amenity]||"Establecimiento sin nombre");
+  ?"Parque infantil":({cafe:"Cafetería sin nombre",bar:"Bar sin nombre",restaurant:"Restaurante sin nombre",fast_food:"Local de comida rápida sin nombre"})[o.tags?.amenity]||"Establecimiento sin nombre");
 const escapeHTML=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const distance=(a,b)=>{const rad=Math.PI/180,R=6371000,x=(b.lat-a.lat)*rad,y=(b.lon-a.lon)*rad*Math.cos(a.lat*rad);return Math.round(R*Math.hypot(x,y));};
 const coords=o=>({lat:o.lat??o.center?.lat,lon:o.lon??o.center?.lon});
@@ -612,7 +612,7 @@ function venuePopup(venue,distanceToPark,park,inSamePark=false,urbanParkName="")
   title.textContent=safeLabel(venue);
   const category=document.createElement("span");
   category.className="venue-popup__category";
-  category.textContent=({bar:"Bar",cafe:"Cafetería",restaurant:"Restaurante"})[venue.tags?.amenity]||"Local";
+  category.textContent=({bar:"Bar",cafe:"Cafetería",restaurant:"Restaurante",fast_food:"Comida rápida"})[venue.tags?.amenity]||"Local";
   titleGroup.append(title,category);
   header.append(brand,titleGroup);
 

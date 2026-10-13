@@ -45,7 +45,7 @@ jobs:
           const fs = require("fs");
           const x = JSON.parse(fs.readFileSync("public/data/osm-places.json", "utf8"));
           const parks = x.elements.filter(e => e.tags?.leisure === "playground");
-          const venues = x.elements.filter(e => ["cafe","bar","restaurant"].includes(e.tags?.amenity));
+          const venues = x.elements.filter(e => ["cafe","bar","restaurant","fast_food"].includes(e.tags?.amenity));
           if (x.schemaVersion !== 2 || x.license !== "ODbL" || !x.coverage ||
               parks.length < 50 || venues.length < 50 ||
               !Number.isInteger(x.parkAreaCount) || x.parkAreaCount < 50 ||
