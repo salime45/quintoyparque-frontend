@@ -705,3 +705,145 @@ footer { padding-top: 13px; border-top: 1px solid var(--qyp-border); }
   #myReviewsModal { padding: 17px; }
   .verified-filter { font-size: .8rem; }
 }
+
+/* Búsqueda global de bares y parques. Sugerencias encima del mapa y del panel. */
+.place-search {
+  position: relative;
+  z-index: 10;
+  margin: 20px 0 15px;
+}
+.place-search > label {
+  font-size: .92rem;
+  font-weight: 800;
+  color: var(--qyp-purple);
+  margin-bottom: 7px;
+}
+.place-search__field { position: relative; }
+.place-search__field #placeSearch {
+  width: 100%;
+  margin: 0;
+  padding: 13px 43px 13px 41px;
+  font-size: 1rem;
+  line-height: 1.35;
+  color: var(--qyp-ink);
+  background: #fff;
+  border: 2px solid #CCC4DA;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #4b44660b;
+}
+.place-search__field #placeSearch::placeholder { color: #746B7B; }
+.place-search__field #placeSearch:focus-visible {
+  border-color: var(--qyp-purple);
+  outline: 3px solid #ffcb0070;
+  outline-offset: 2px;
+}
+.place-search__icon {
+  position: absolute;
+  inset-inline-start: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 29px;
+  line-height: 1;
+  color: var(--qyp-purple);
+}
+.place-search__clear {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 5px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 35px;
+  min-width: 35px;
+  height: 35px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--qyp-purple);
+  font-size: 23px;
+  line-height: 1;
+  border-radius: 8px;
+}
+.place-search__clear:hover:not(:disabled) { background: var(--qyp-soft-yellow); }
+.place-search__clear[hidden],
+.place-search__results[hidden] { display: none !important; }
+.place-search__help {
+  margin: 7px 2px 0;
+  font-size: .78rem;
+  line-height: 1.4;
+  color: var(--qyp-muted);
+}
+.place-search__results {
+  position: absolute;
+  z-index: 40;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  max-height: min(360px, 48dvh);
+  background: #fff;
+  border: 1px solid #DCD5E7;
+  border-radius: 12px;
+  box-shadow: 0 12px 35px #302b4030;
+  padding: 5px;
+  color: var(--qyp-purple);
+  font-size: .85rem;
+}
+.place-search__item {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 11px 10px;
+  background: #fff;
+  color: var(--qyp-ink);
+  border: 0;
+  border-bottom: 1px solid #F3EFF6;
+  border-radius: 7px;
+  box-shadow: none;
+  font-size: .9rem;
+}
+.place-search__item:last-child { border-bottom: 0; }
+.place-search__item:hover:not(:disabled),
+.place-search__item:focus-visible {
+  background: #FFF8DF;
+  color: var(--qyp-purple);
+  box-shadow: none;
+}
+.place-search__kind {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  height: 32px;
+  background: #F5F0FA;
+  border-radius: 9px;
+  color: var(--qyp-purple);
+  font-size: 22px;
+}
+.place-search__kind img {
+  width: 20px;
+  height: 26px;
+  object-fit: contain;
+}
+.place-search__details {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.place-search__details strong { font-size: .91rem; font-weight: 750; }
+.place-search__details small {
+  font-size: .77rem;
+  color: var(--qyp-muted);
+  line-height: 1.4;
+}
+.place-search__empty { margin: 8px 10px; line-height: 1.5; }
+@media (max-width: 760px) {
+  .place-search { margin: 15px 0 12px; }
+  .place-search__results { max-height: min(350px, 52dvh); }
+  .place-search__item { padding: 12px 10px; }
+}

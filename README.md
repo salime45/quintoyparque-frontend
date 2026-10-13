@@ -26,6 +26,31 @@ El catálogo de partida contiene aproximadamente 1.450 zonas infantiles y 3.150 
 
 **Créditos y licencia:** © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/). Los datos de ubicaciones redistribuidos conservan su atribución y licencia. Si se publica una base derivada, revisar los requisitos de la ODbL.
 
+## Buscador de texto
+
+La barra **¿Qué sitio buscas?** encuentra locales y parques infantiles
+por nombre, calles registradas en OSM y nombres de parques urbanos
+(por ejemplo, **Parc de Marxalenes**), incluso cuando están fuera de
+la parte del mapa que se está visualizando. Devuelve sugerencias
+mientras escribes; al elegir una opción, centra el mapa y abre la ficha
+del local o de la zona infantil.
+
+- Busca exclusivamente en el catálogo OSM versionado, sin llamadas a
+  servicios externos de geocodificación. También muestra locales
+  publicados y aprobados en Firestore.
+- Solo ofrece locales que cumplen el radio seleccionado (60, 100 o
+  150 m) o que están dentro del mismo parque que una zona infantil.
+  No amplía los resultados a bares alejados o sin relación con parques.
+- Permite buscar sin tildes, con varias palabras o usando «parque»
+  en lugar de «parc». Las calles solo se encuentran cuando existe
+  ese dato en OpenStreetMap.
+- Las sugerencias se pueden recorrer con el teclado; Enter selecciona
+  y Escape cierra. La selección coloca a la vista el local y su zona
+  infantil relacionada cuando están identificados.
+
+La búsqueda no sustituye a la navegación libre por el mapa ni valida
+terrazas o visibilidad desde los locales.
+
 ## Detección automática de locales dentro del mismo parque
 
 El radio predeterminado es de **60 m de una zona infantil**, ampliable a 100 y
@@ -50,6 +75,7 @@ si Overpass devuelve datos incompletos.
 ## Funcionalidades
 
 - Mapa Leaflet/OpenStreetMap, geolocalización opcional y filtros.
+- Buscador global por texto para bares, cafeterías, parques y calles de toda la cobertura, con sugerencias y acceso directo al mapa.
 - Se muestran parejas parque-establecimiento a menos de 60 metros por defecto (ampliable a 100 o 150 metros), y también locales dentro del mismo recinto OSM con zona infantil aunque esta quede fuera de la vista.
 - Datos OSM versionados y disponibles incluso cuando los servidores Overpass fallan.
 - Distinción entre locales candidatos no verificados y lugares publicados desde Firestore.

@@ -17,6 +17,18 @@
 <p class="hero-title">Tu terraza favorita.<br><span>Su parque ideal.</span></p>
 </div></div><div class="toolbar"><span id="account" class="small" style="color:white"></span><button id="myReviews" class="secondary my-reviews-button" type="button" aria-label="Mis reseñas" hidden><span aria-hidden="true">★</span><span class="my-reviews-label">Mis reseñas</span></button><button id="login" class="secondary" aria-label="Acceder con Google" hidden>Entrar</button><button id="logout" class="secondary" hidden>Salir</button></div></header>
 <main><aside><h2 style="margin:0">Explora el mapa</h2><p class="small">Encuentra bares, cafeterías y restaurantes próximos a parques infantiles, incluidos los que están <strong>dentro del mismo parque</strong>. La distancia se mide en línea recta: la cercanía no garantiza visibilidad desde la terraza.</p>
+<div class="place-search" role="search" aria-label="Buscar lugares en Valencia">
+  <label for="placeSearch">¿Qué sitio buscas?</label>
+  <div class="place-search__field">
+    <span class="place-search__icon" aria-hidden="true">⌕</span>
+    <input id="placeSearch" type="search" role="combobox" aria-autocomplete="list"
+      aria-expanded="false" aria-controls="placeSearchResults" autocomplete="off"
+      placeholder="Bar, parque o calle…" spellcheck="false">
+    <button id="clearPlaceSearch" type="button" class="place-search__clear" aria-label="Limpiar búsqueda" hidden>×</button>
+  </div>
+  <div id="placeSearchResults" class="place-search__results" role="listbox" aria-label="Lugares encontrados" hidden></div>
+  <p class="place-search__help">Busca en toda Valencia y alrededores, no solo en el mapa visible.</p>
+</div>
 <div class="controls"><button id="reload">Buscar aquí</button><button id="near" class="secondary">Mi ubicación</button><button id="suggest" class="secondary">Proponer sitio</button></div>
 <div id="status" role="status">Cargando mapa…</div>
 <div class="map-legend" aria-label="Leyenda del mapa">
@@ -104,6 +116,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signO
 import { getFirestore, collection, addDoc, setDoc, updateDoc, writeBatch, doc, getDoc, serverTimestamp, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import config from "./firebase-config.js";
 import { buildProximityIndex, filterVisiblePairs } from "./js/proximity.js";
+import { buildPlaceSearchCatalog, findPlaces, normalizeSearchText, publishedPlaceSearchEntry } from "./js/place-search.js";
 import { osmVenueKey, buildReviewDocument, stars } from "./js/reviews.mjs";
 const $=id=>document.getElementById(id), center=[39.4699,-0.3763];
 const map=L.map("map").setView(center,13);
@@ -112,6 +125,8 @@ const parkLayer=L.layerGroup().addTo(map), cafeLayer=L.layerGroup().addTo(map), 
 let cafes=[],parks=[],proximity=null,visiblePairs=null,auth=null,db=null,user=null,selected=null,selectionMarker=null;
 let reviewVenue=null,reviewPark=null,reviewLoadSequence=0,reviewEditing=false,returnToMyReviews=false;
 let reviewedVenueKeys=new Set();
+let publishedSearchEntries=[],publishedMarkers=new Map();
+let placeSearchCache=new Map(),placeSearchRequest=0;
 if(config?.apiKey && config?.projectId){try{const app=initializeApp(config);auth=getAuth(app);db=getFirestore(app);$("login").hidden=false;onAuthStateChanged(auth,u=>{
   user=u;
   $("account").textContent=u?.displayName||"";
@@ -176,6 +191,152 @@ async function fetchOSM(){
     status("No se pudo cargar el catálogo local. "+error.message+". Inténtalo de nuevo en unos minutos.");
   }finally{$("reload").disabled=false;}
 }
+// Buscar por texto sobre TODO el catálogo OSM, filtrado por el mismo radio
+// que el mapa. Se calcula una sola vez por radio; no se usa Overpass ni APIs
+// de geocodificación en el navegador.
+async function getSearchCatalog(){
+  const radius=Number($("radius").value);
+  if(!placeSearchCache.has(radius)){
+    const data=await loadSnapshot();
+    if(!proximity)proximity=buildProximityIndex(data.elements,150);
+    placeSearchCache.set(radius,buildPlaceSearchCatalog(
+      data.elements,proximity,data.parkMatches||[],radius
+    ));
+  }
+  return [...placeSearchCache.get(radius),...publishedSearchEntries];
+}
+function closeSearchResults(){
+  $("placeSearchResults").hidden=true;
+  $("placeSearch").setAttribute("aria-expanded","false");
+}
+async function updatePlaceSearch(){
+  const input=$("placeSearch"),list=$("placeSearchResults");
+  const query=input.value.trim(),request=++placeSearchRequest;
+  $("clearPlaceSearch").hidden=!query;
+  if(normalizeSearchText(query).length<2){
+    list.replaceChildren();
+    closeSearchResults();
+    return;
+  }
+  list.textContent="Buscando lugares…";
+  list.hidden=false;
+  input.setAttribute("aria-expanded","true");
+  try {
+    const entries=await getSearchCatalog();
+    if(request!==placeSearchRequest || query!==input.value.trim())return;
+    const hits=findPlaces(entries,query,9);
+    list.replaceChildren();
+    if(!hits.length){
+      const empty=document.createElement("p");
+      empty.className="place-search__empty";
+      empty.textContent="No encontramos ese sitio con el radio seleccionado. Prueba con otro nombre, amplía a 100/150 m o propón un lugar.";
+      list.append(empty);
+      return;
+    }
+    for(const hit of hits){
+      const button=document.createElement("button");
+      button.type="button";
+      button.className="place-search__item";
+      button.setAttribute("role","option");
+      button.setAttribute("aria-selected","false");
+      const symbol=document.createElement("span");
+      symbol.className="place-search__kind";
+      const pictogram=document.createElement("img");
+      pictogram.src=hit.kind==="park"?"./brand/park-marker.svg":"./brand/beer-marker.svg";
+      pictogram.alt="";
+      pictogram.width=20;
+      pictogram.height=26;
+      symbol.append(pictogram);
+      symbol.setAttribute("aria-hidden","true");
+      const details=document.createElement("span");
+      details.className="place-search__details";
+      const label=document.createElement("strong");
+      label.textContent=hit.label;
+      const note=document.createElement("small");
+      note.textContent=hit.subtitle;
+      details.append(label,note);
+      button.append(symbol,details);
+      button.onclick=()=>{void selectPlaceSearchResult(hit);};
+      list.append(button);
+    }
+  }catch(error){
+    if(request!==placeSearchRequest)return;
+    console.error("Error en el buscador",error);
+    list.textContent="No se pudo consultar el catálogo de lugares. Inténtalo de nuevo.";
+  }
+}
+async function selectPlaceSearchResult(hit){
+  ++placeSearchRequest;
+  $("placeSearch").value=hit.label;
+  $("clearPlaceSearch").hidden=false;
+  closeSearchResults();
+  $("onlyParks").checked=true;
+  $("onlyCafes").checked=true;
+  $("onlyVerified").checked=false;
+  if(!map.hasLayer(verifiedLayer))verifiedLayer.addTo(map);
+  const p=coords(hit.place),companion=hit.companion&&coords(hit.companion);
+  if(companion){
+    map.fitBounds([[p.lat,p.lon],[companion.lat,companion.lon]],{
+      padding:[70,70],maxZoom:17,animate:false
+    });
+  }else{
+    map.setView([p.lat,p.lon],17,{animate:false});
+  }
+  try{
+    await fetchOSM();
+    const marker=hit.kind==="park"?parkMarkers.get(hit.place.id)
+      :hit.kind==="published"?publishedMarkers.get(hit.place.id)
+      :cafeMarkers.get(hit.place.id);
+    if(marker && hit.kind==="park" && hit.label!==safeLabel(hit.place)){
+      marker.setPopupContent("<b>"+escapeHTML(hit.label)+"</b><br>Zona infantil del parque");
+    }
+    if(marker){
+      marker.openPopup();
+    }else{
+      status("Ubicación centrada. Pulsa «Buscar aquí» si no aparecen los marcadores de esta zona.");
+    }
+  }catch(error){
+    console.error("No se pudo centrar el lugar seleccionado",error);
+    status("No se pudo abrir el lugar. Inténtalo de nuevo.");
+  }
+}
+$("placeSearch").addEventListener("input",()=>{void updatePlaceSearch();});
+$("placeSearch").addEventListener("focus",()=>{
+  if(normalizeSearchText($("placeSearch").value).length>=2)void updatePlaceSearch();
+});
+$("placeSearch").addEventListener("keydown",e=>{
+  if(e.key==="Escape"){e.preventDefault();++placeSearchRequest;closeSearchResults();}
+  else if(e.key==="ArrowDown"&&!$("placeSearchResults").hidden){
+    const first=$("placeSearchResults").querySelector("button");
+    if(first){e.preventDefault();first.focus();}
+  }else if(e.key==="Enter"&&!$("placeSearchResults").hidden){
+    const first=$("placeSearchResults").querySelector("button");
+    if(first){e.preventDefault();first.click();}
+  }
+});
+$("placeSearchResults").addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    e.preventDefault();++placeSearchRequest;closeSearchResults();$("placeSearch").focus();
+  }else if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+    const buttons=[...$("placeSearchResults").querySelectorAll("button")];
+    const idx=buttons.indexOf(document.activeElement);
+    if(idx<0)return;
+    e.preventDefault();
+    if(e.key==="ArrowUp"&&idx===0)$("placeSearch").focus();
+    else buttons[(idx+(e.key==="ArrowDown"?1:-1)+buttons.length)%buttons.length]?.focus();
+  }
+});
+$("clearPlaceSearch").onclick=()=>{
+  $("placeSearch").value="";
+  ++placeSearchRequest;
+  $("clearPlaceSearch").hidden=true;
+  closeSearchResults();
+  $("placeSearch").focus();
+};
+document.addEventListener("pointerdown",e=>{
+  if(!e.target.closest(".place-search")){++placeSearchRequest;closeSearchResults();}
+});
+
 // El documento público osmReviews/{id} sirve de índice ligero de locales
 // con reseñas: una sola consulta por carga, sin cientos de peticiones ni índices.
 function reviewedRef(venue){return doc(db,"osmReviews",osmVenueKey(venue));}
@@ -749,7 +910,10 @@ if(!filtered.length)root.textContent=verifiedOnly?
   "No hay locales con reseñas en esta zona. Amplía la búsqueda o quita el filtro.":
   "No se han encontrado establecimientos próximos. Prueba en otra zona.";
 }
-$("reload").onclick=fetchOSM;$("radius").onchange=fetchOSM;$("onlyParks").onchange=render;
+$("reload").onclick=fetchOSM;$("radius").onchange=()=>{
+  void fetchOSM();
+  if($("placeSearch").value.trim())void updatePlaceSearch();
+};$("onlyParks").onchange=render;
 $("onlyCafes").onchange=()=>{if($("onlyCafes").checked)verifiedLayer.addTo(map);else map.removeLayer(verifiedLayer);render();};
 $("onlyVerified").onchange=render;
 $("near").onclick=()=>{if(!navigator.geolocation){status("El navegador no admite geolocalización.");return;}navigator.geolocation.getCurrentPosition(p=>{map.setView([p.coords.latitude,p.coords.longitude],15);fetchOSM();},()=>status("No se ha podido acceder a tu ubicación."),{enableHighAccuracy:false,timeout:9000});};
@@ -757,6 +921,28 @@ const modal=$("modal");$("suggest").onclick=()=>{if(!db){alert("Pendiente de con
 $("cancel").onclick=()=>modal.close();
 map.on("click",e=>{if(!modal.open)return;selected=e.latlng;$("coords").textContent="Ubicación: "+selected.lat.toFixed(5)+", "+selected.lng.toFixed(5);if(selectionMarker)map.removeLayer(selectionMarker);selectionMarker=L.marker(selected).addTo(map);});
 $("placeForm").onsubmit=async e=>{e.preventDefault();if(!user||!db||!selected)return;const f=new FormData(e.target),button=e.target.querySelector('[type="submit"]');button.disabled=true;try{await addDoc(collection(db,"suggestions"),{uid:user.uid,name:String(f.get("name")).trim(),address:String(f.get("address")).trim(),comment:String(f.get("comment")).trim(),lat:selected.lat,lng:selected.lng,status:"pending",createdAt:serverTimestamp()});modal.close();e.target.reset();alert("Propuesta recibida. Quedará pendiente de revisión.");}catch(error){alert("No se pudo enviar: "+error.message);}finally{button.disabled=false;}};
-async function loadPublished(){if(!db)return;try{const snap=await getDocs(query(collection(db,"places"),where("status","==","published")));snap.forEach(doc=>{const p=doc.data();if(typeof p.lat!=="number"||typeof p.lng!=="number")return;L.marker([p.lat,p.lng],{icon:verifiedBrandIcon,title:p.name||"Local verificado"}).bindPopup("<strong>"+escapeHTML(p.name)+"</strong><br>"+escapeHTML(p.description||"Sitio verificado por la comunidad")+"<br><b>Revisado</b>").addTo(verifiedLayer);});}catch(e){console.warn("No se pudieron cargar los locales publicados",e);}}
+async function loadPublished(){
+  if(!db)return;
+  try{
+    const snap=await getDocs(query(collection(db,"places"),where("status","==","published")));
+    publishedSearchEntries=[];
+    publishedMarkers.clear();
+    snap.forEach(documentSnapshot=>{
+      const p=documentSnapshot.data();
+      if(!Number.isFinite(p.lat)||!Number.isFinite(p.lng))return;
+      const marker=L.marker([p.lat,p.lng],{
+        icon:verifiedBrandIcon,title:p.name||"Local publicado"
+      }).bindPopup("<strong>"+escapeHTML(p.name)+"</strong><br>"+
+        escapeHTML(p.description||"Sitio publicado por la comunidad")+
+        "<br><b>Publicado</b>").addTo(verifiedLayer);
+      publishedMarkers.set("firestore/"+documentSnapshot.id,marker);
+      const entry=publishedPlaceSearchEntry(documentSnapshot.id,p);
+      if(entry)publishedSearchEntries.push(entry);
+    });
+    if(normalizeSearchText($("placeSearch").value).length>=2)void updatePlaceSearch();
+  }catch(error){
+    console.warn("No se pudieron cargar los locales publicados",error);
+  }
+}
 loadPublished();fetchOSM();loadReviewedVenues();
 </script></body></html>
