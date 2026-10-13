@@ -1,5 +1,12 @@
 {
   "projects": {
     "default": "quintoyparque"
+  },
+  "targets": {
+    "quintoyparque": {
+      "hosting": {
+        "test": ["qyp-test"]
+      }
+    }
   }
 }
