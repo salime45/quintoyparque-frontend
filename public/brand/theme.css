@@ -290,3 +290,69 @@ footer { padding-top: 13px; border-top: 1px solid var(--qyp-border); }
   .radius-control label { font-size: .78rem; }
   .radius-control select { font-size: .82rem; }
 }
+
+/* Reseñas sobre locales OSM: formulario accesible también en móvil. */
+#reviewModal {
+  width: min(520px, calc(100vw - 24px));
+  max-width: 100%;
+  max-height: calc(100dvh - 24px);
+  padding: 22px;
+  overflow-y: auto;
+  color: var(--qyp-ink);
+  background: var(--qyp-cream);
+}
+#reviewModal[open] { display: block; }
+.review-dialog-header { display: flex; gap: 16px; align-items: center; }
+.review-dialog-header h2 { margin: 0 0 5px; color: var(--qyp-purple); }
+.review-dialog-header p { margin: 3px 0; }
+.review-dialog-header .modal-brand { width: 52px; height: 65px; flex: 0 0 auto; }
+.review-message {
+  min-height: 1.3em;
+  margin: 12px 0;
+  font-size: .86rem;
+  color: var(--qyp-purple);
+}
+.review-fieldset { margin: 14px 0; padding: 10px 12px 14px; border: 1px solid var(--qyp-border); border-radius: 12px; }
+.review-fieldset legend { font-weight: 700; color: var(--qyp-purple); padding: 0 4px; }
+.review-choice { display: flex; align-items: center; flex-wrap: wrap; gap: 18px; padding-top: 7px; }
+.review-choice label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+.review-choice input { margin: 0; width: 18px; height: 18px; accent-color: var(--qyp-purple); }
+.review-rating-options { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; margin-top: 6px; }
+.review-rating-options label { display: block; position: relative; cursor: pointer; text-align: center; }
+.review-rating-options label input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.review-rating-options label span {
+  display: flex; gap: 4px; justify-content: center; align-items: center;
+  min-height: 47px; border-radius: 9px;
+  background: #fff; border: 1px solid #D8CEB5;
+  color: #806A00; font-size: 1.25rem; font-weight: 800;
+}
+.review-rating-options label span small { font-size: .86rem; color: var(--qyp-purple); }
+.review-rating-options label:has(input:checked) span {
+  background: #FFF0A1; border: 2px solid var(--qyp-purple);
+}
+.review-rating-options label:focus-within span {
+  outline: 3px solid var(--qyp-yellow); outline-offset: 2px;
+}
+#reviewComment { max-width: 100%; min-height: 90px; resize: vertical; }
+.review-actions { margin-top: 8px; }
+.review-existing {
+  border-left: 4px solid var(--qyp-yellow);
+  border-radius: 9px; padding: 12px;
+  background: var(--qyp-soft-yellow); line-height: 1.5;
+}
+.review-close { margin-top: 8px; }
+#reviewModal [hidden] { display: none !important; }
+.venue-popup { max-width: 270px; color: var(--qyp-ink); }
+.venue-popup > p { margin: 7px 0; }
+.popup-review-btn { display: inline-block; margin: 5px 0; padding: 8px 11px; font-size: .86rem; }
+.popup-reviews { padding-top: 5px; font-size: .82rem; }
+.popup-review-summary { font-weight: 800; color: var(--qyp-purple); }
+.popup-review-item { border-top: 1px solid var(--qyp-border); padding-top: 7px; margin-top: 7px; }
+.popup-review-item strong { color: #866300; letter-spacing: .04em; }
+.popup-review-item p { margin: 5px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media(max-width: 420px) {
+  #reviewModal { padding: 15px; }
+  .review-dialog-header { gap: 10px; }
+  .review-rating-options { gap: 4px; }
+  .review-rating-options label span { font-size: 1.05rem; }
+}

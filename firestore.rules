@@ -26,6 +26,88 @@ service cloud.firestore {
       }
     }
 
+    // Reseñas sobre locales importados de OpenStreetMap. No se exige
+    // documento padre: cada usuario tiene una sola reseña por local.
+    match /osmReviews/{venueKey}/reviews/{reviewId} {
+      function validVenueKey() {
+        return venueKey.size() <= 32 &&
+          venueKey.matches('^(node|way|relation)_[0-9]+
+      allow read: if admin();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(["uid", "name", "address", "comment", "lat", "lng", "status", "createdAt"])
+        && request.resource.data.uid == request.auth.uid
+        && basicText(request.resource.data.name, 120)
+        && basicText(request.resource.data.address, 250)
+        && basicText(request.resource.data.comment, 700)
+        && request.resource.data.lat is number
+        && request.resource.data.lng is number
+        && request.resource.data.lat >= 38 && request.resource.data.lat <= 41
+        && request.resource.data.lng >= -2 && request.resource.data.lng <= 1
+        && request.resource.data.status == "pending"
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if admin();
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
+);
+      }
+
+      // Se permite consultar el ID propio aunque todavía no exista.
+      // Los listados públicos DEBEN filtrar status == "published".
+      allow get: if admin()
+        || (signedIn() && reviewId == request.auth.uid)
+        || (resource != null && resource.data.status == "published");
+      allow list: if admin() || resource.data.status == "published";
+
+      allow create: if signedIn()
+        && validVenueKey()
+        && reviewId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          "uid", "venueName", "parkId", "parkName", "rating",
+          "parkVisible", "streetCrossing", "comment", "status", "createdAt"
+        ])
+        && request.resource.data.keys().hasAll([
+          "uid", "venueName", "parkId", "parkName", "rating",
+          "parkVisible", "streetCrossing", "comment", "status", "createdAt"
+        ])
+        && request.resource.data.uid == request.auth.uid
+        && basicText(request.resource.data.venueName, 120)
+        && basicText(request.resource.data.parkName, 120)
+        && request.resource.data.parkId is string
+        && request.resource.data.parkId.size() <= 40
+        && request.resource.data.parkId.matches('^(node|way|relation)/[0-9]+
+      allow read: if admin();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(["uid", "name", "address", "comment", "lat", "lng", "status", "createdAt"])
+        && request.resource.data.uid == request.auth.uid
+        && basicText(request.resource.data.name, 120)
+        && basicText(request.resource.data.address, 250)
+        && basicText(request.resource.data.comment, 700)
+        && request.resource.data.lat is number
+        && request.resource.data.lng is number
+        && request.resource.data.lat >= 38 && request.resource.data.lat <= 41
+        && request.resource.data.lng >= -2 && request.resource.data.lng <= 1
+        && request.resource.data.status == "pending"
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if admin();
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
+)
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.parkVisible is bool
+        && request.resource.data.streetCrossing is bool
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() <= 700
+        && request.resource.data.status == "pending"
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if admin();
+    }
+
     match /suggestions/{suggestionId} {
       allow read: if admin();
       allow create: if signedIn()

@@ -35,19 +35,71 @@
 <label>Dirección<input name="address" required maxlength="250"></label>
 <label>¿Se ve el parque? ¿Hay que cruzar una calle?<textarea name="comment" required maxlength="700"></textarea></label>
 <p id="coords" class="small"></p><div class="actions"><button type="submit">Enviar propuesta</button><button type="button" class="secondary" id="cancel">Cancelar</button></div></form></dialog>
+<dialog id="reviewModal" aria-labelledby="reviewTitle">
+  <div class="review-dialog-header">
+    <img class="modal-brand" src="./brand/icon.svg" alt="" aria-hidden="true">
+    <div><h2 id="reviewTitle">Dejar una reseña</h2>
+      <p class="small" id="reviewVenueName"></p>
+      <p class="small" id="reviewParkName"></p>
+    </div>
+  </div>
+  <p class="review-message" role="status" id="reviewMessage"></p>
+  <div id="reviewAuthGate" hidden>
+    <p>Inicia sesión con Google para valorar este sitio.</p>
+    <button id="reviewLogin" type="button">Acceder con Google</button>
+  </div>
+  <div id="reviewExisting" class="review-existing" hidden></div>
+  <form id="reviewForm" hidden>
+    <fieldset class="review-fieldset review-stars">
+      <legend>¿Qué puntuación le das? <span aria-hidden="true">*</span></legend>
+      <div class="review-rating-options">
+        <label><input type="radio" name="rating" value="1" aria-label="1 estrella" required><span>★ <small>1</small></span></label>
+        <label><input type="radio" name="rating" value="2" aria-label="2 estrellas"><span>★ <small>2</small></span></label>
+        <label><input type="radio" name="rating" value="3" aria-label="3 estrellas"><span>★ <small>3</small></span></label>
+        <label><input type="radio" name="rating" value="4" aria-label="4 estrellas"><span>★ <small>4</small></span></label>
+        <label><input type="radio" name="rating" value="5" aria-label="5 estrellas"><span>★ <small>5</small></span></label>
+      </div>
+    </fieldset>
+    <fieldset class="review-fieldset">
+      <legend>¿Se ve el parque desde la terraza? <span aria-hidden="true">*</span></legend>
+      <div class="review-choice">
+        <label><input type="radio" name="parkVisible" value="yes" required> Sí</label>
+        <label><input type="radio" name="parkVisible" value="no"> No</label>
+      </div>
+    </fieldset>
+    <fieldset class="review-fieldset">
+      <legend>¿Hay que cruzar alguna calle para llegar al parque? <span aria-hidden="true">*</span></legend>
+      <div class="review-choice">
+        <label><input type="radio" name="streetCrossing" value="yes" required> Sí</label>
+        <label><input type="radio" name="streetCrossing" value="no"> No</label>
+      </div>
+    </fieldset>
+    <label for="reviewComment">Comentario (opcional)</label>
+    <textarea id="reviewComment" name="comment" maxlength="700" rows="3"
+      placeholder="¿Se ve bien a los niños? ¿Qué destacarías del sitio?"></textarea>
+    <p class="small">La reseña será visible públicamente después de revisarla.</p>
+    <div class="actions review-actions">
+      <button id="reviewSubmit" type="submit">Enviar reseña</button>
+      <button id="reviewCancel" type="button" class="secondary">Cancelar</button>
+    </div>
+  </form>
+  <button id="reviewClose" class="secondary review-close" type="button">Cerrar</button>
+</dialog>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, setDoc, doc, getDoc, serverTimestamp, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import config from "./firebase-config.js";
 import { buildProximityIndex, filterVisiblePairs } from "./js/proximity.js";
+import { osmVenueKey, buildReviewDocument, stars } from "./js/reviews.mjs";
 const $=id=>document.getElementById(id), center=[39.4699,-0.3763];
 const map=L.map("map").setView(center,13);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
 const parkLayer=L.layerGroup().addTo(map), cafeLayer=L.layerGroup().addTo(map), verifiedLayer=L.layerGroup().addTo(map);
 let cafes=[],parks=[],proximity=null,visiblePairs=null,auth=null,db=null,user=null,selected=null,selectionMarker=null;
-if(config?.apiKey && config?.projectId){try{const app=initializeApp(config);auth=getAuth(app);db=getFirestore(app);$("login").hidden=false;onAuthStateChanged(auth,u=>{user=u;$("account").textContent=u?.displayName||"";$("login").hidden=!!u;$("logout").hidden=!u;});}catch(e){console.warn("Firebase unavailable",e);}}
+let reviewVenue=null,reviewPark=null,reviewLoadSequence=0;
+if(config?.apiKey && config?.projectId){try{const app=initializeApp(config);auth=getAuth(app);db=getFirestore(app);$("login").hidden=false;onAuthStateChanged(auth,u=>{user=u;$("account").textContent=u?.displayName||"";$("login").hidden=!!u;$("logout").hidden=!u;if($("reviewModal").open)void refreshReviewForm();});}catch(e){console.warn("Firebase unavailable",e);}}
 $("login").onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>alert("No se pudo iniciar sesión: "+e.message));
 $("logout").onclick=()=>signOut(auth);
 const status=t=>$("status").textContent=t;
@@ -127,15 +179,179 @@ function brandMarkerIcon(kind, verified=false) {
 const parkBrandIcon = brandMarkerIcon("park");
 const venueBrandIcon = brandMarkerIcon("venue");
 const verifiedBrandIcon = brandMarkerIcon("venue", true);
+
+// El ID de OSM permanece estable aunque cambie el nombre de un bar.
+// Guardamos una reseña por usuario y establecimiento (pendiente de moderación).
+const reviewModal=$("reviewModal");
+const reviewForm=$("reviewForm");
+$("reviewCancel").onclick=()=>reviewModal.close();
+$("reviewClose").onclick=()=>reviewModal.close();
+reviewModal.addEventListener("close",()=>{reviewLoadSequence++;reviewVenue=null;reviewPark=null;});
+
+function showReviewNotice(message) {
+  $("reviewMessage").textContent=message;
+}
+function myReviewRef(venue,uid) {
+  return doc(db,"osmReviews",osmVenueKey(venue),"reviews",uid);
+}
+function reviewedCollection(venue) {
+  return collection(db,"osmReviews",osmVenueKey(venue),"reviews");
+}
+function reviewInfoLine(item) {
+  const parts=[
+    "Parque: "+(item.parkName||"Parque infantil"),
+    "Visibilidad: "+(item.parkVisible?"Sí":"No"),
+    "Cruzar calle: "+(item.streetCrossing?"Sí":"No")
+  ];
+  return parts.join(" · ");
+}
+async function loadVenueReviews(venue,container) {
+  if(!db){container.textContent="Las reseñas no están disponibles.";return;}
+  try {
+    const snap=await getDocs(query(reviewedCollection(venue),where("status","==","published")));
+    if(!container.isConnected)return;
+    container.replaceChildren();
+    if(snap.empty){
+      container.textContent="Todavía no hay reseñas publicadas.";
+      return;
+    }
+    const approved=snap.docs.map(x=>x.data()).sort((a,b)=>
+      (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    const avg=(approved.reduce((sum,r)=>sum+r.rating,0)/approved.length).toFixed(1).replace(".",",");
+    const summary=document.createElement("p");
+    summary.className="popup-review-summary";
+    summary.textContent=avg+" / 5 ★ · "+approved.length+" reseña"+(approved.length===1?"":"s")+" publicada"+(approved.length===1?"":"s");
+    container.append(summary);
+    for(const item of approved.slice(0,3)){
+      const block=document.createElement("div");
+      block.className="popup-review-item";
+      const rating=document.createElement("strong");
+      rating.textContent=stars(item.rating);
+      const meta=document.createElement("p");
+      meta.className="small";
+      meta.textContent=reviewInfoLine(item);
+      block.append(rating,meta);
+      if(item.comment){
+        const comment=document.createElement("p");
+        comment.textContent=item.comment;
+        block.append(comment);
+      }
+      container.append(block);
+    }
+    if(approved.length>3){
+      const more=document.createElement("p");more.className="small";
+      more.textContent="Mostrando las 3 reseñas más recientes.";
+      container.append(more);
+    }
+  }catch(error){
+    console.warn("No se pudieron cargar reseñas del local",error);
+    if(container.isConnected)container.textContent="No se pudieron cargar las reseñas. Inténtalo más tarde.";
+  }
+}
+function venuePopup(venue,distanceToPark,park) {
+  const root=document.createElement("section");
+  root.className="venue-popup";
+  const title=document.createElement("strong");
+  title.textContent=safeLabel(venue);
+  const detail=document.createElement("p");
+  detail.textContent=distanceToPark+" m de "+safeLabel(park)+" (línea recta, sin verificar)";
+  const button=document.createElement("button");
+  button.type="button";
+  button.textContent="Dejar reseña";
+  button.className="popup-review-btn";
+  button.onclick=()=>openReview(venue,park);
+  const reviews=document.createElement("div");
+  reviews.className="popup-reviews";
+  reviews.textContent="Cargando reseñas…";
+  root.append(title,detail,button,reviews);
+  void loadVenueReviews(venue,reviews);
+  return root;
+}
+async function refreshReviewForm() {
+  const sequence=++reviewLoadSequence;
+  $("reviewAuthGate").hidden=!!user;
+  $("reviewExisting").hidden=true;
+  reviewForm.hidden=true;
+  $("reviewClose").hidden=false;
+  if(!reviewVenue || !db){showReviewNotice("No se puede guardar la reseña ahora mismo.");return;}
+  if(!user){showReviewNotice("Tu valoración estará pendiente de revisión.");return;}
+  showReviewNotice("Comprobando si ya has valorado este bar…");
+  const venue=reviewVenue,uid=user.uid;
+  try{
+    const snap=await getDoc(myReviewRef(venue,uid));
+    if(sequence!==reviewLoadSequence||!reviewModal.open||user?.uid!==uid)return;
+    showReviewNotice("");
+    if(snap.exists()){
+      const existing=snap.data();
+      $("reviewExisting").hidden=false;
+      $("reviewExisting").textContent="Ya has enviado una reseña para este local: "+
+        stars(existing.rating)+" · "+(existing.status==="published"?"Publicada":"Pendiente de revisión")+".";
+    }else{
+      reviewForm.hidden=false;
+      $("reviewClose").hidden=true;
+    }
+  }catch(error){
+    console.warn("No se pudo comprobar la reseña del usuario",error);
+    if(sequence===reviewLoadSequence)showReviewNotice(
+      "No se ha podido consultar Firestore. Comprueba que estén publicadas las reglas de seguridad.");
+  }
+}
+function openReview(venue,park) {
+  if(!venue||!park)return;
+  reviewVenue=venue;
+  reviewPark=park;
+  reviewForm.reset();
+  $("reviewVenueName").textContent=safeLabel(venue);
+  $("reviewParkName").textContent="Parque asociado: "+safeLabel(park);
+  showReviewNotice("");
+  reviewModal.showModal();
+  void refreshReviewForm();
+}
+$("reviewLogin").onclick=async()=>{
+  if(!auth)return showReviewNotice("Firebase Authentication no está disponible.");
+  try{await signInWithPopup(auth,new GoogleAuthProvider());}
+  catch(error){showReviewNotice("No se pudo iniciar sesión: "+error.message);}
+};
+reviewForm.onsubmit=async event=>{
+  event.preventDefault();
+  if(!user||!db||!reviewVenue||!reviewPark)return;
+  const uid=user.uid,venue=reviewVenue,park=reviewPark;
+  const fields=new FormData(reviewForm);
+  const submit=$("reviewSubmit");
+  submit.disabled=true;
+  showReviewNotice("Guardando reseña…");
+  try{
+    const record=buildReviewDocument({
+      uid,venue,park,
+      rating:fields.get("rating"),
+      parkVisible:fields.get("parkVisible"),
+      streetCrossing:fields.get("streetCrossing"),
+      comment:String(fields.get("comment")||""),
+      createdAt:serverTimestamp(),
+    });
+    await setDoc(myReviewRef(venue,uid),record);
+    reviewForm.hidden=true;
+    $("reviewExisting").hidden=false;
+    $("reviewExisting").textContent="Reseña enviada: "+stars(record.rating)+
+      ". Está pendiente de revisión antes de publicarse.";
+    $("reviewClose").hidden=false;
+    showReviewNotice("Gracias por aportar información sobre este sitio.");
+  }catch(error){
+    console.warn("No se pudo enviar la reseña",error);
+    showReviewNotice(error.code==="permission-denied"?
+      "Permiso denegado. Comprueba las reglas de Firestore o si ya has enviado una reseña para este bar.":
+      "No se pudo guardar la reseña. Inténtalo otra vez.");
+  }finally{submit.disabled=false;}
+};
 let parkMarkers=new Map(),cafeMarkers=new Map();
 function render(){
 parkLayer.clearLayers();cafeLayer.clearLayers();parkMarkers=new Map();cafeMarkers=new Map();
 for(const p of parks){const c=coords(p),count=visiblePairs?.parkVenueCounts.get(p.id)||0,m=L.marker([c.lat,c.lon],{icon:parkBrandIcon,title:safeLabel(p)}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+count+" locales a menos de 150 m (sin verificar)");parkMarkers.set(p.id,m);if($("onlyParks").checked)m.addTo(parkLayer);}
 const scored=cafes.map(o=>({...o,dist:visiblePairs?.venueDistances.get(o.id)??null})).filter(o=>o.dist!=null && o.dist<=150).sort((a,b)=>a.dist-b.dist);
-for(const p of scored){const c=coords(p),m=L.marker([c.lat,c.lon],{icon:venueBrandIcon,title:safeLabel(p)}).bindPopup("<b>"+escapeHTML(safeLabel(p))+"</b><br>"+p.dist+" m de "+escapeHTML(safeLabel(visiblePairs.nearestParkByVenue.get(p.id)))+"<br><small>Proximidad automática, sin verificar</small>");cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
+for(const p of scored){const c=coords(p),park=visiblePairs.nearestParkByVenue.get(p.id),m=L.marker([c.lat,c.lon],{icon:venueBrandIcon,title:safeLabel(p)}).bindPopup(()=>venuePopup(p,p.dist,park),{maxWidth:300});cafeMarkers.set(p.id,m);if($("onlyCafes").checked)m.addTo(cafeLayer);}
 const root=$("results");root.replaceChildren();$("heading").textContent="Locales a "+$("radius").value+" m de un parque ("+scored.length+")";
 for(const p of scored.slice(0,35)){const article=document.createElement("article");const h=document.createElement("h3");h.textContent=safeLabel(p);article.append(h);const note=document.createElement("p");note.textContent=p.dist+" metros del parque más cercano · Pendiente de verificar terraza y visibilidad";article.append(note);
-const button=document.createElement("button");button.className="secondary";button.textContent="Ver en mapa";button.onclick=()=>showPlace(p,"cafe");const a=document.createElement("a");const c=coords(p);a.href="https://www.openstreetmap.org/?mlat="+c.lat+"&mlon="+c.lon+"#map=18/"+c.lat+"/"+c.lon;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir ubicación";const row=document.createElement("div");row.className="actions";row.append(button,a);article.append(row);root.append(article);}
+const button=document.createElement("button");button.className="secondary";button.textContent="Ver en mapa";button.onclick=()=>showPlace(p,"cafe");const a=document.createElement("a");const c=coords(p);a.href="https://www.openstreetmap.org/?mlat="+c.lat+"&mlon="+c.lon+"#map=18/"+c.lat+"/"+c.lon;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir ubicación";const row=document.createElement("div");row.className="actions";const reviewButton=document.createElement("button");reviewButton.className="secondary";reviewButton.textContent="Dejar reseña";reviewButton.onclick=()=>openReview(p,visiblePairs.nearestParkByVenue.get(p.id));row.append(button,reviewButton,a);article.append(row);root.append(article);}
 if(!scored.length)root.textContent="No se han encontrado establecimientos próximos. Prueba en otra zona.";
 }
 $("reload").onclick=fetchOSM;$("radius").onchange=fetchOSM;$("onlyParks").onchange=render;$("onlyCafes").onchange=render;
