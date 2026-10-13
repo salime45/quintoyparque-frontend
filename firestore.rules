@@ -31,26 +31,7 @@ service cloud.firestore {
     match /osmReviews/{venueKey}/reviews/{reviewId} {
       function validVenueKey() {
         return venueKey.size() <= 32 &&
-          venueKey.matches('^(node|way|relation)_[0-9]+
-      allow read: if admin();
-      allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(["uid", "name", "address", "comment", "lat", "lng", "status", "createdAt"])
-        && request.resource.data.uid == request.auth.uid
-        && basicText(request.resource.data.name, 120)
-        && basicText(request.resource.data.address, 250)
-        && basicText(request.resource.data.comment, 700)
-        && request.resource.data.lat is number
-        && request.resource.data.lng is number
-        && request.resource.data.lat >= 38 && request.resource.data.lat <= 41
-        && request.resource.data.lng >= -2 && request.resource.data.lng <= 1
-        && request.resource.data.status == "pending"
-        && request.resource.data.createdAt == request.time;
-      allow update, delete: if admin();
-    }
-    match /{document=**} { allow read, write: if false; }
-  }
-}
-);
+          venueKey.matches('^(node|way|relation)_[0-9]+$');
       }
 
       // Se permite consultar el ID propio aunque todavía no exista.
@@ -76,26 +57,7 @@ service cloud.firestore {
         && basicText(request.resource.data.parkName, 120)
         && request.resource.data.parkId is string
         && request.resource.data.parkId.size() <= 40
-        && request.resource.data.parkId.matches('^(node|way|relation)/[0-9]+
-      allow read: if admin();
-      allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(["uid", "name", "address", "comment", "lat", "lng", "status", "createdAt"])
-        && request.resource.data.uid == request.auth.uid
-        && basicText(request.resource.data.name, 120)
-        && basicText(request.resource.data.address, 250)
-        && basicText(request.resource.data.comment, 700)
-        && request.resource.data.lat is number
-        && request.resource.data.lng is number
-        && request.resource.data.lat >= 38 && request.resource.data.lat <= 41
-        && request.resource.data.lng >= -2 && request.resource.data.lng <= 1
-        && request.resource.data.status == "pending"
-        && request.resource.data.createdAt == request.time;
-      allow update, delete: if admin();
-    }
-    match /{document=**} { allow read, write: if false; }
-  }
-}
-)
+        && request.resource.data.parkId.matches('^(node|way|relation)/[0-9]+$')
         && request.resource.data.rating is int
         && request.resource.data.rating >= 1
         && request.resource.data.rating <= 5
