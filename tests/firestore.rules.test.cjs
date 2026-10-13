@@ -14,6 +14,7 @@ const {
   query,
   where,
   setDoc,
+  updateDoc,
   serverTimestamp,
 } = require("firebase/firestore");
 
@@ -123,7 +124,7 @@ function osmReview(uid, overrides = {}) {
     parkVisible: true,
     streetCrossing: false,
     comment: "Se ve desde la terraza",
-    status: "pending",
+    status: "published",
     createdAt: serverTimestamp(),
     ...overrides,
   };
@@ -131,50 +132,68 @@ function osmReview(uid, overrides = {}) {
 const osmPath = (uid = "person-1", venue = "node_12345", store = user(uid)) =>
   doc(store, "osmReviews", venue, "reviews", uid);
 
-test("OSM venue reviews: authenticated visitors can submit pending reviews", async () => {
+async function seedLegacyPendingReview(uid = "person-1") {
+  await env.withSecurityRulesDisabled(async ctx => {
+    await setDoc(doc(ctx.firestore(), "osmReviews", "node_12345", "reviews", uid),
+      osmReview(uid, {status: "pending"}));
+  });
+}
+
+test("OSM: new authenticated reviews publish immediately and are publicly readable", async () => {
   await assertFails(setDoc(osmPath("guest", "node_12345", anonymous()), osmReview("guest")));
   await assertSucceeds(setDoc(osmPath(), osmReview("person-1")));
-  await assertSucceeds(getDoc(osmPath()));
-  await assertFails(getDoc(osmPath("person-1", "node_12345", anonymous())));
-  await assertFails(getDoc(osmPath("person-1", "node_12345", user("person-2"))));
+  const publicDoc = await assertSucceeds(getDoc(osmPath("person-1", "node_12345", anonymous())));
+  assert.equal(publicDoc.data().rating, 4);
+  assert.equal(publicDoc.data().status, "published");
 });
 
-test("OSM venue reviews: checking your own missing review is allowed", async () => {
+test("OSM: checking your own missing review is allowed", async () => {
   const result = await assertSucceeds(getDoc(osmPath()));
   assert.equal(result.exists(), false);
 });
 
-test("OSM venue reviews: cannot forge identity, publish, or submit invalid fields", async () => {
+test("OSM: invalid new reviews cannot bypass identity or schema checks", async () => {
   await assertFails(setDoc(osmPath("other-uid", "node_12345", user("person-1")), osmReview("person-1")));
   await assertFails(setDoc(osmPath(), osmReview("different-user")));
-  await assertFails(setDoc(osmPath(), osmReview("person-1", { status: "published" })));
-  await assertFails(setDoc(osmPath(), osmReview("person-1", { rating: 6 })));
-  await assertFails(setDoc(osmPath(), osmReview("person-1", { rating: 0 })));
-  await assertFails(setDoc(osmPath(), osmReview("person-1", { parkVisible: "yes" })));
-  await assertFails(setDoc(osmPath(), osmReview("person-1", { streetCrossing: null })));
-  await assertFails(setDoc(osmPath(), osmReview("person-1", { comment: "a".repeat(701) })));
-  await assertFails(setDoc(osmPath(), osmReview("person-1", { parkId: "not-an-osm-id" })));
+  await assertFails(setDoc(osmPath(), osmReview("person-1", {status: "pending"})));
+  await assertFails(setDoc(osmPath(), osmReview("person-1", {rating: 6})));
+  await assertFails(setDoc(osmPath(), osmReview("person-1", {rating: 0})));
+  await assertFails(setDoc(osmPath(), osmReview("person-1", {parkVisible: "yes"})));
+  await assertFails(setDoc(osmPath(), osmReview("person-1", {streetCrossing: null})));
+  await assertFails(setDoc(osmPath(), osmReview("person-1", {comment: "a".repeat(701)})));
+  await assertFails(setDoc(osmPath(), osmReview("person-1", {parkId: "not-an-osm-id"})));
   await assertFails(setDoc(osmPath("person-1", "bad-id"), osmReview("person-1")));
-  await assertFails(setDoc(osmPath(), osmReview("person-1", { isAdmin: true })));
+  await assertFails(setDoc(osmPath(), osmReview("person-1", {isAdmin: true})));
 });
 
-test("OSM venue reviews: public can query only published reviews", async () => {
-  const path=osmPath();
-  await assertSucceeds(setDoc(path, osmReview("person-1")));
+test("OSM: public list only accepts status published queries", async () => {
+  await assertSucceeds(setDoc(osmPath(), osmReview("person-1")));
+  await seedLegacyPendingReview("person-2");
   const group=collection(anonymous(), "osmReviews", "node_12345", "reviews");
   await assertFails(getDocs(group));
   await assertFails(getDocs(query(group, where("status", "==", "pending"))));
-  await assertSucceeds(getDocs(query(group, where("status", "==", "published"))));
-  await assertSucceeds(setDoc(osmPath("person-1", "node_12345", admin()), osmReview("person-1", { status: "published" })));
-  const publicRead=await assertSucceeds(getDoc(doc(anonymous(), "osmReviews", "node_12345", "reviews", "person-1")));
-  assert.equal(publicRead.data().rating, 4);
-  const published=await assertSucceeds(getDocs(query(group, where("status", "==", "published"))));
-  assert.equal(published.size, 1);
+  const snap=await assertSucceeds(getDocs(query(group, where("status", "==", "published"))));
+  assert.equal(snap.size, 1);
+  await assertFails(getDoc(osmPath("person-2", "node_12345", anonymous())));
 });
 
-test("OSM venue reviews: users cannot change or resubmit existing reviews", async () => {
+test("OSM: the author can only promote their old pending review", async () => {
+  await seedLegacyPendingReview();
+  await assertFails(updateDoc(osmPath("person-1","node_12345",user("person-2")), {status:"published"}));
+  await assertFails(updateDoc(osmPath(), {status:"published",rating:1}));
+  await assertFails(updateDoc(osmPath(), {comment:"Texto modificado"}));
+  await assertFails(updateDoc(osmPath(), {status:"rejected"}));
+  await assertSucceeds(updateDoc(osmPath(), {status:"published"}));
+  const published=await assertSucceeds(getDoc(osmPath("person-1","node_12345",anonymous())));
+  assert.equal(published.data().status,"published");
+  assert.equal(published.data().rating,4);
+  await assertFails(updateDoc(osmPath(), {status:"pending"}));
+  await assertFails(updateDoc(osmPath(), {rating:1}));
+});
+
+test("OSM: published reviews cannot be replaced or deleted by their author", async () => {
   await assertSucceeds(setDoc(osmPath(), osmReview("person-1")));
-  await assertFails(setDoc(osmPath(), osmReview("person-1", { rating: 1 })));
-  await assertSucceeds(setDoc(osmPath("person-1", "node_12345", admin()), osmReview("person-1", { status: "published" })));
-  await assertFails(setDoc(osmPath(), osmReview("person-1")));
+  await assertFails(setDoc(osmPath(), osmReview("person-1", {rating:1})));
+  await assertFails(updateDoc(osmPath(), {comment:"Cambio no autorizado"}));
+  await assertSucceeds(updateDoc(osmPath("person-1", "node_12345", admin()), {comment:"Moderación excepcional"}));
 });

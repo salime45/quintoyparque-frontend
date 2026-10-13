@@ -41,7 +41,7 @@ export function buildReviewDocument({ uid, venue, park, rating, parkVisible, str
     parkVisible: yesOrNo(parkVisible, "visibilidad"),
     streetCrossing: yesOrNo(streetCrossing, "cruce de calle"),
     comment: comment.trim(),
-    status: "pending",
+    status: "published",
     createdAt,
   };
 }

@@ -22,7 +22,7 @@ test("La reseña utiliza la identidad OSM estable, no el nombre del local",()=>{
     assert.throws(()=>osmVenueKey(id));
   }
 });
-test("El registro solo puede crearse como pendiente, con preguntas binarias",()=>{
+test("La reseña se publica al crearla, con respuestas binarias",()=>{
   const data=buildReviewDocument(input);
   assert.deepEqual(data,{
     uid:"person-1",
@@ -30,7 +30,7 @@ test("El registro solo puede crearse como pendiente, con preguntas binarias",()=
     parkId:"way/781864583",
     parkName:"Parque infantil",
     rating:5,parkVisible:true,streetCrossing:false,
-    comment:"Buena terraza",status:"pending",
+    comment:"Buena terraza",status:"published",
     createdAt:input.createdAt
   });
 });
@@ -60,6 +60,13 @@ test("Las fichas del mapa y la lista enlazan con el formulario",()=>{
   assert.ok(html.includes('doc(db,"osmReviews",osmVenueKey(venue),"reviews",uid)'));
   assert.ok(html.includes('comment.textContent=item.comment'));
   assert.ok(html.includes('await setDoc(myReviewRef(venue,uid),record);'));
+  assert.ok(html.includes('await updateDoc(reference,{status:"published"});'));
+  assert.ok(html.includes('if(user){'));
+  assert.ok(html.includes('await publishOlderPendingReview(venue);'));
+  assert.ok(html.includes('refreshVisibleReviews(venue);'));
+  assert.ok(html.includes('Reseña publicada: '));
+  assert.ok(html.includes('La reseña se publicará inmediatamente.'));
+  assert.ok(!html.includes('Está pendiente de revisión antes de publicarse.'));
 });
 test("El módulo inline del mapa contiene JavaScript sintácticamente válido",()=>{
   const html=here("public/index.html");

@@ -77,7 +77,7 @@
     <label for="reviewComment">Comentario (opcional)</label>
     <textarea id="reviewComment" name="comment" maxlength="700" rows="3"
       placeholder="¿Se ve bien a los niños? ¿Qué destacarías del sitio?"></textarea>
-    <p class="small">La reseña será visible públicamente después de revisarla.</p>
+    <p class="small">La reseña se publicará inmediatamente. No incluyas datos personales en el comentario.</p>
     <div class="actions review-actions">
       <button id="reviewSubmit" type="submit">Enviar reseña</button>
       <button id="reviewCancel" type="button" class="secondary">Cancelar</button>
@@ -89,7 +89,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, setDoc, doc, getDoc, serverTimestamp, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, setDoc, updateDoc, doc, getDoc, serverTimestamp, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import config from "./firebase-config.js";
 import { buildProximityIndex, filterVisiblePairs } from "./js/proximity.js";
 import { osmVenueKey, buildReviewDocument, stars } from "./js/reviews.mjs";
@@ -184,6 +184,8 @@ const verifiedBrandIcon = brandMarkerIcon("venue", true);
 // Guardamos una reseña por usuario y establecimiento (pendiente de moderación).
 const reviewModal=$("reviewModal");
 const reviewForm=$("reviewForm");
+const pendingReviewPromotions=new Map();
+let activeReviewContainer=null,activeReviewVenueKey=null;
 $("reviewCancel").onclick=()=>reviewModal.close();
 $("reviewClose").onclick=()=>reviewModal.close();
 reviewModal.addEventListener("close",()=>{reviewLoadSequence++;reviewVenue=null;reviewPark=null;});
@@ -197,6 +199,30 @@ function myReviewRef(venue,uid) {
 function reviewedCollection(venue) {
   return collection(db,"osmReviews",osmVenueKey(venue),"reviews");
 }
+// También hacemos visibles las reseñas que se enviaron antes de eliminar
+// la moderación. Solo su autor puede publicarlas, sin cambiar el contenido.
+async function publishOlderPendingReview(venue) {
+  if(!db||!user)return false;
+  const uid=user.uid, key=osmVenueKey(venue)+"/"+uid;
+  if(pendingReviewPromotions.has(key))return pendingReviewPromotions.get(key);
+  const operation=(async()=>{
+    const reference=myReviewRef(venue,uid);
+    const previous=await getDoc(reference);
+    if(!previous.exists()||previous.data().status!=="pending")return false;
+    await updateDoc(reference,{status:"published"});
+    return true;
+  })();
+  pendingReviewPromotions.set(key,operation);
+  try{return await operation;}
+  finally{
+    if(pendingReviewPromotions.get(key)===operation)pendingReviewPromotions.delete(key);
+  }
+}
+function refreshVisibleReviews(venue) {
+  if(activeReviewContainer?.isConnected && activeReviewVenueKey===osmVenueKey(venue)){
+    void loadVenueReviews(venue,activeReviewContainer);
+  }
+}
 function reviewInfoLine(item) {
   const parts=[
     "Parque: "+(item.parkName||"Parque infantil"),
@@ -208,6 +234,10 @@ function reviewInfoLine(item) {
 async function loadVenueReviews(venue,container) {
   if(!db){container.textContent="Las reseñas no están disponibles.";return;}
   try {
+    if(user){
+      try{await publishOlderPendingReview(venue);}
+      catch(error){console.warn("No se pudo publicar una reseña anterior",error);}
+    }
     const snap=await getDocs(query(reviewedCollection(venue),where("status","==","published")));
     if(!container.isConnected)return;
     container.replaceChildren();
@@ -263,6 +293,8 @@ function venuePopup(venue,distanceToPark,park) {
   const reviews=document.createElement("div");
   reviews.className="popup-reviews";
   reviews.textContent="Cargando reseñas…";
+  activeReviewContainer=reviews;
+  activeReviewVenueKey=osmVenueKey(venue);
   root.append(title,detail,button,reviews);
   void loadVenueReviews(venue,reviews);
   return root;
@@ -274,10 +306,13 @@ async function refreshReviewForm() {
   reviewForm.hidden=true;
   $("reviewClose").hidden=false;
   if(!reviewVenue || !db){showReviewNotice("No se puede guardar la reseña ahora mismo.");return;}
-  if(!user){showReviewNotice("Tu valoración estará pendiente de revisión.");return;}
+  if(!user){showReviewNotice("Tu valoración se publicará en cuanto la envíes.");return;}
   showReviewNotice("Comprobando si ya has valorado este bar…");
   const venue=reviewVenue,uid=user.uid;
   try{
+    let promoted=false;
+    try{promoted=await publishOlderPendingReview(venue);}
+    catch(error){console.warn("No se pudo publicar la reseña anterior",error);}
     const snap=await getDoc(myReviewRef(venue,uid));
     if(sequence!==reviewLoadSequence||!reviewModal.open||user?.uid!==uid)return;
     showReviewNotice("");
@@ -285,7 +320,10 @@ async function refreshReviewForm() {
       const existing=snap.data();
       $("reviewExisting").hidden=false;
       $("reviewExisting").textContent="Ya has enviado una reseña para este local: "+
-        stars(existing.rating)+" · "+(existing.status==="published"?"Publicada":"Pendiente de revisión")+".";
+        stars(existing.rating)+" · "+(existing.status==="published"
+          ?"Publicada y visible para todos."
+          :"Todavía pendiente: no se ha podido publicar automáticamente.");
+      if(promoted)refreshVisibleReviews(venue);
     }else{
       reviewForm.hidden=false;
       $("reviewClose").hidden=true;
@@ -332,10 +370,11 @@ reviewForm.onsubmit=async event=>{
     await setDoc(myReviewRef(venue,uid),record);
     reviewForm.hidden=true;
     $("reviewExisting").hidden=false;
-    $("reviewExisting").textContent="Reseña enviada: "+stars(record.rating)+
-      ". Está pendiente de revisión antes de publicarse.";
+    $("reviewExisting").textContent="Reseña publicada: "+stars(record.rating)+
+      ". Ya está visible para todos.";
     $("reviewClose").hidden=false;
     showReviewNotice("Gracias por aportar información sobre este sitio.");
+    refreshVisibleReviews(venue);
   }catch(error){
     console.warn("No se pudo enviar la reseña",error);
     showReviewNotice(error.code==="permission-denied"?

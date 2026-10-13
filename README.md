@@ -32,21 +32,21 @@ El catálogo inicial contiene 1.446 parques infantiles y 3.138 locales (4.584 ub
 - Datos OSM versionados y disponibles incluso cuando los servidores Overpass fallan.
 - Distinción entre locales candidatos no verificados y lugares publicados desde Firestore.
 - Acceso Google para proponer sitios, pendientes de moderación.
-- **Reseñas de bares del mapa**: 1–5 estrellas, visibilidad del parque desde la terraza, si hay que cruzar calle y comentario opcional. Solo se escribe tras iniciar sesión con Google. Los visitantes pueden consultar reseñas aprobadas y el autor puede ver que su propia reseña está pendiente.
+- **Reseñas de bares del mapa**: 1–5 estrellas, visibilidad del parque desde la terraza, cruce de calle y comentario opcional. Se publican inmediatamente al enviarlas con sesión de Google.
 
-## Reseñas y moderación (Firestore)
+## Reseñas sin aprobación previa (Firestore)
 
 Cada establecimiento importado de OpenStreetMap se identifica de forma estable por su ID, por ejemplo `node/12258686901` → `node_12258686901`.
 
-- Cada usuario autenticado crea como máximo **una reseña por bar** en `osmReviews/{venueKey}/reviews/{uid}`.
-- Se guarda el parque asociado (`parkId`, `parkName`), para interpretar correctamente las respuestas sobre visibilidad y cruces.
-- Las nuevas reseñas tienen `status: "pending"`; el usuario puede comprobar que la ha enviado, pero **no aparece en las opiniones públicas** hasta su aprobación.
-- Las reseñas con `status: "published"` pueden leerse públicamente; los borradores solo los leen el autor mediante su ID y moderadores.
-- Se consultan las reseñas públicas mediante `where("status","==","published")` dentro de la subcolección de cada bar. No es necesario crear un índice compuesto.
-- Solo un administrador (o Firebase Console con permisos adecuados) puede aprobar, editar o borrar. Para moderar de momento, abre Firebase Console → Firestore Database → Datos, localiza `osmReviews/{venueKey}/reviews/{uid}` y cambia el campo `status` de `pending` a `published`. Revisa antes que la reseña es adecuada. Aunque un documento padre `osmReviews/{venueKey}` no exista, la subcolección puede contener documentos.
-- **Pendiente**: panel de moderación desde la propia web, editar la reseña propia y notificaciones a administradores.
+- Cada usuario autenticado puede publicar **una reseña por bar** en `osmReviews/{venueKey}/reviews/{uid}`, con valoración de 1–5 estrellas, visibilidad desde la terraza, cruce de calle y comentario opcional.
+- Las reseñas nuevas se guardan con `status: "published"` y aparecen públicamente **sin moderación manual**.
+- Las reseñas que ya estaban en `pending` antes del cambio se publican **cuando su propio autor abre la ficha de ese bar**, estando conectado. Se modifica exclusivamente su estado, no el contenido. No hay una migración masiva de otros usuarios en el servidor.
+- El público consulta las reseñas usando `where("status","==","published")`. Las reseñas antiguas todavía pendientes no son legibles por otros usuarios.
+- Los autores no pueden modificar su puntuación o comentario tras enviarlos ni borrar su reseña; un administrador puede intervenir desde Firebase Console en caso de contenido inapropiado.
 
-La puntuación y las respuestas reflejan experiencias de usuarios y **no equivalen a una verificación oficial** del establecimiento ni a una garantía de visibilidad o seguridad. Las reglas previas de reseñas sobre locales verificados (`places/{id}/reviews`) permanecen disponibles.
+Se conserva el modelo de permisos previo para las reseñas de `places/{id}/reviews` (lugares verificados manualmente), cuya interfaz aún no está desarrollada. Las reseñas automáticas de la web se guardan exclusivamente en `osmReviews`.
+
+Las opiniones son aportaciones de usuarios, no verificaciones oficiales ni garantía de visibilidad, seguridad o accesibilidad.
 
 ## Despliegue
 
@@ -86,4 +86,4 @@ Los despliegues manuales desde este único repositorio pueden hacerse con `bash 
 
 ## Limitaciones actuales
 
-La cercanía es en línea recta, no tiempo de caminata. Los locales OSM pueden estar cerrados, no tener terraza o estar separados por una carretera. El estado de verificación y las opiniones comunitarias pertenecen a Firestore, no se mezclan con el catálogo externo. Las reseñas se pueden enviar desde la web, pero necesitan moderación manual antes de mostrarse; las sugerencias de lugares también requieren moderación.
+La cercanía es en línea recta, no tiempo de caminata. Los locales OSM pueden estar cerrados, no tener terraza o estar separados por una carretera. El estado de verificación y las opiniones comunitarias pertenecen a Firestore, no se mezclan con el catálogo externo. Las reseñas de bares del mapa aparecen inmediatamente; las sugerencias de nuevos lugares siguen requiriendo moderación.
