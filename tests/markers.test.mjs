@@ -22,7 +22,8 @@ test("Parks, venues and verified venues use branded Leaflet markers",()=>{
   assert.match(html,/const verifiedBrandIcon = brandMarkerIcon\("venue", true\)/);
   assert.ok(html.includes("L.marker([c.lat,c.lon],{icon:parkBrandIcon"));
   assert.ok(html.includes("icon:reviewed?verifiedBrandIcon:venueBrandIcon"));
-  assert.ok(html.includes("L.marker([p.lat,p.lng],{icon:verifiedBrandIcon"));
+  assert.ok(html.includes("const marker=L.marker([p.lat,p.lng],{"));
+  assert.ok(html.includes('icon:verifiedBrandIcon,title:p.name||"Local publicado"'));
   assert.equal(html.includes("L.circleMarker("),false);
 });
 test("Legend assets and the mobile map styles exist",()=>{
@@ -41,7 +42,8 @@ test("Proximidad prudente por defecto, ampliable sin cambiar el catálogo",()=>{
   assert.match(html, /<option value="150">150 m/);
   assert.ok(html.includes('const radius = Number($("radius").value);'));
   assert.ok(html.includes("visiblePairs=filterVisiblePairs(data.elements,proximity,item=>view.contains([item.lat,item.lon]),radius,data.parkMatches||[]);"));
-  assert.ok(html.includes('$("radius").onchange=fetchOSM'));
+  assert.ok(html.includes('$("radius").onchange=()=>{'));
+  assert.ok(html.includes("void fetchOSM();"));
   assert.ok(css.includes(".radius-control select:focus-visible"));
 });
 
