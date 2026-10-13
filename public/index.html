@@ -127,7 +127,16 @@ let reviewVenue=null,reviewPark=null,reviewLoadSequence=0,reviewEditing=false,re
 let reviewedVenueKeys=new Set();
 let publishedSearchEntries=[],publishedMarkers=new Map();
 let placeSearchCache=new Map(),placeSearchRequest=0;
-if(config?.apiKey && config?.projectId){try{const app=initializeApp(config);auth=getAuth(app);db=getFirestore(app);$("login").hidden=false;onAuthStateChanged(auth,u=>{
+async function initializeAnalytics(app) {
+  if (!config.measurementId) return;
+  try {
+    const { getAnalytics, isSupported } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-analytics.js");
+    if (await isSupported()) getAnalytics(app);
+  } catch (error) {
+    console.warn("Firebase Analytics unavailable", error);
+  }
+}
+if(config?.apiKey && config?.projectId){try{const app=initializeApp(config);void initializeAnalytics(app);auth=getAuth(app);db=getFirestore(app);$("login").hidden=false;onAuthStateChanged(auth,u=>{
   user=u;
   $("account").textContent=u?.displayName||"";
   $("login").hidden=!!u;
