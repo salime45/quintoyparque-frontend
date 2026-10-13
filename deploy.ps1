@@ -18,6 +18,10 @@ try {
         & $firebaseCmd deploy --project $projectId --only 'firestore:rules'
         if ($LASTEXITCODE -ne 0) { throw 'Error al desplegar reglas.' }
     } else {
+        & npm.cmd ci --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) { throw 'Error al instalar dependencias.' }
+        & npm.cmd run build
+        if ($LASTEXITCODE -ne 0) { throw 'Error al compilar el frontend.' }
         & $firebaseCmd deploy --project $projectId --only 'firestore:rules'
         if ($LASTEXITCODE -ne 0) { throw 'Error al desplegar reglas. Hosting NO se desplegará.' }
         & $firebaseCmd deploy --project $projectId --only hosting
