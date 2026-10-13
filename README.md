@@ -1,13 +1,27 @@
 # Quinto y Parque · Frontend
 
-Web móvil para encontrar cafeterías, bares, restaurantes y locales de comida rápida cerca de parques infantiles en Valencia. Proyecto Firebase: `quintoyparque` · [Web](https://quintoyparque.web.app/).
+Aplicación Vue 3 + Vite, con Leaflet y Firebase, para encontrar cafeterías, bares, restaurantes y locales de comida rápida cerca de parques infantiles en Valencia. Proyecto Firebase: `quintoyparque` · [Web](https://quintoyparque.web.app/).
+
+## Estructura y desarrollo
+
+- `index.html`: entrada de Vite y metadatos para buscadores y enlaces compartidos.
+- `src/App.vue` y `src/components/`: cabecera, buscador, filtros, resultados, mapa, fichas y diálogos de propuestas y reseñas.
+- `src/composables/`: estado reactivo del explorador, sesión y comportamiento accesible del menú móvil.
+- `src/services/`: catálogo OSM, configuración pública de Firebase y operaciones de autenticación y Firestore. Las reseñas mantienen sus tres documentos relacionados mediante un lote atómico.
+- `src/lib/`: proximidad, búsqueda, validación de reseñas y selección de resultados; reutiliza la lógica del frontend anterior.
+- `public/`: catálogo, imágenes de marca y página 404, copiados por Vite al compilar.
+- `tests/components/`: pruebas de componentes Vue con servicios simulados; `tests/e2e/`: pruebas de navegador en escritorio y móvil con catálogo controlado y conexiones externas bloqueadas.
+
+`npm run dev` inicia el servidor local. `npm run build` genera `dist/` y `npm run preview` permite revisar esa compilación. El mapa necesita conexión a OpenStreetMap para las teselas; el buscador usa el catálogo local. Las operaciones de cuenta y reseñas requieren Firebase.
+
+`npm test` ejecuta las pruebas de dominio y componentes. `npm run test:firestore` valida las reglas con un proyecto de emulador. Las pruebas de navegador (`npm run test:e2e`) requieren una compilación previa y Chromium instalado con `npx playwright install chromium`. No realizan escrituras en Firebase de producción.
 
 ## Datos geográficos (versionados en GitHub)
 
 La aplicación **no hace consultas a Overpass desde el navegador** y **los despliegues ordinarios tampoco necesitan Overpass**.
 
 - [`public/data/osm-places.json`](public/data/osm-places.json): archivo versionado con ubicaciones de OpenStreetMap (parques y locales). Incluye fecha, cobertura y licencia.
-- [`public/index.html`](public/index.html): lee el JSON a través de Firebase Hosting (`/data/osm-places.json`) y calcula los establecimientos cercanos a los parques, con distancias configurables de 60, 100 o 150 metros en línea recta, además de incluir automáticamente locales situados dentro del mismo parque que una zona infantil.
+- [`src/services/catalog.js`](src/services/catalog.js): lee el JSON a través de Firebase Hosting (`/data/osm-places.json`); [`src/composables/useExplorer.js`](src/composables/useExplorer.js) coordina los establecimientos cercanos a los parques, con distancias configurables de 60, 100 o 150 metros en línea recta, además de incluir automáticamente locales situados dentro del mismo parque que una zona infantil.
 - [`scripts/refresh-osm.mjs`](scripts/refresh-osm.mjs): descarga lugares y polígonos OSM de parques y jardines al actualizar el catálogo.
 - [`scripts/osm-park-geometry.mjs`](scripts/osm-park-geometry.mjs): determina automáticamente qué cafeterías y zonas infantiles están dentro de la misma geometría, sin listas manuales. El navegador recibe solo los emparejamientos calculados.
 - [`.github/workflows/refresh-osm.yml`](.github/workflows/refresh-osm.yml): actualiza semanalmente (lunes, 04:20 UTC) o al ejecutarlo manualmente, valida el JSON, crea un commit en `main` si cambian las ubicaciones y publica las reglas de Firestore seguidas de Hosting. Si falla Overpass, conserva el catálogo versionado.
@@ -114,7 +128,7 @@ confirma la tarjeta real ni los permisos de ubicación y acceso Google dentro
 del navegador de WhatsApp. Si se cambia la imagen, utilizar un nuevo nombre
 de archivo y actualizar sus metadatos para evitar reutilizar la imagen anterior.
 
-El flujo habitual es hacer push a `main` y comprobar el workflow **Deploy Firebase Hosting and Firestore**. Si se modifica la extracción geográfica, el workflow de actualización regenera los polígonos y publica el catálogo antes de activar esta versión.
+El flujo habitual es hacer push a `main` y comprobar el workflow **Deploy Firebase Hosting and Firestore**. El workflow instala con `npm ci`, ejecuta las pruebas, compila con `npm run build` y publica `dist/`. La actualización semanal utiliza la misma acción: el catálogo actualizado se copia a `dist/data/` durante la compilación. Si se modifica la extracción geográfica, el workflow de actualización regenera los polígonos y publica el catálogo antes de activar esta versión.
 
 Para un despliegue excepcional desde tu equipo, tras autenticarte con `firebase login`, ejecuta `bash deploy.sh` (o `.\\deploy.ps1` en Windows). Ambos publican primero las reglas y después Hosting.
 
@@ -124,7 +138,7 @@ El archivo `public/data/osm-places.json` debe existir en tu clon del repo. No ej
 
 El repositorio actual incluye **frontend, reglas y pruebas de Firestore**. El antiguo [quintoyparque-backend](https://github.com/salime45/quintoyparque-backend) se conserva únicamente como histórico; no es una fuente de despliegues.
 
-- `firebase.json`: Hosting y Firestore en el mismo proyecto `quintoyparque`.
+- `firebase.json`: Hosting publica `dist/`; Firestore conserva las reglas del mismo proyecto `quintoyparque`.
 - `firestore.rules`: reglas de seguridad para lugares, sugerencias y reseñas.
 - `tests/firestore.rules.test.cjs`: pruebas con el emulador de Firestore.
 - `package.json`: herramientas de tests y Firebase CLI.
@@ -138,12 +152,17 @@ Se reutiliza el secreto de GitHub existente `FIREBASE_SERVICE_ACCOUNT_QUINTOYPAR
 
 ### Pruebas en local
 
-Requieren Node.js 22+ y Java 21+ para el emulador:
+Requieren Node.js 22.12+ y Java 21+ para el emulador:
 
 ```bash
-npm install
+npm ci
+npm run dev
+# En otra terminal:
 npm test
 npm run test:firestore
+npm run build
+npx playwright install chromium
+npm run test:e2e
 ```
 
 Los despliegues manuales desde este único repositorio pueden hacerse con `bash deploy.sh` (reglas y Hosting), `bash deploy.sh hosting` o `bash deploy.sh rules`; en Windows, `deploy.ps1` soporta `-SoloHosting` y `-SoloReglas`.

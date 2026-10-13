@@ -102,7 +102,7 @@ test("Rechaza geometrías abiertas o parques sin perímetro",()=>{
 });
 test("La actualización de datos calcula relaciones geométricas sin lista manual",()=>{
   const refresh=readFileSync(new URL("../scripts/refresh-osm.mjs",import.meta.url),"utf8");
-  const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+  const html=readFileSync(new URL("../src/services/catalog.js",import.meta.url),"utf8");
   assert.match(refresh,/buildParkQuery/);
   assert.match(refresh,/computeParkMatches/);
   assert.match(refresh,/schemaVersion: 2/);

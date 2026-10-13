@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {buildProximityIndex} from "../public/js/proximity.js";
+import {buildProximityIndex} from "../src/lib/proximity.js";
 import {
   normalizeSearchText,buildPlaceSearchCatalog,findPlaces,publishedPlaceSearchEntry
-} from "../public/js/place-search.js";
+} from "../src/lib/place-search.js";
 
 const playground=(id,lat,lon=-0.38,name)=>({
   id,lat,lon,tags:{leisure:"playground",...(name?{name}:{})}
@@ -98,23 +98,4 @@ test("La búsqueda de producción indexa Marxalenes automáticamente y no depend
   assert.ok(matches.length>100,"El buscador debe contener lugares de toda Valencia");
   assert.ok(findPlaces(matches,"Marxalenes",10).some(r=>r.label==="Parc de Marxalenes"));
   assert.equal(findPlaces(matches,"zzzinexistenteunico").length,0);
-});
-test("Interfaz accesible, sugerencias por teclado y navegación hacia el lugar",()=>{
-  const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
-  const css=readFileSync(new URL("../public/brand/theme.css",import.meta.url),"utf8");
-  assert.ok(html.includes('id="placeSearch" type="search"'));
-  assert.ok(html.includes('id="placeSearchResults"'));
-  assert.ok(html.includes('role="combobox"'));
-  assert.ok(html.includes("function updatePlaceSearch()"));
-  assert.ok(html.includes('e.key==="ArrowDown"'));
-  assert.ok(html.includes('e.key==="Escape"'));
-  assert.ok(html.includes('e.key==="Enter"'));
-  assert.ok(html.includes("buildPlaceSearchCatalog("));
-  assert.ok(html.includes("await fetchOSM();"));
-  assert.ok(html.includes("marker.openPopup();"));
-  assert.ok(html.includes("label.textContent=hit.label"));
-  assert.ok(html.includes("publishedPlaceSearchEntry(documentSnapshot.id,p)"));
-  assert.ok(css.includes(".place-search__results"));
-  assert.ok(css.includes(".place-search__item:focus-visible"));
-  assert.ok(css.includes(".place-search__results[hidden]"));
 });
