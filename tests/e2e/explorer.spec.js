@@ -57,7 +57,7 @@ test("El icono de ubicación centra el mapa y actualiza la zona", async ({ page 
   await openMenu(page);
   await expect(page.locator("#status")).toContainText("Esta zona todavía no está cubierta");
 });
-test("El icono de ubicación permite informar de un permiso denegado", async ({ page }) => {
+test("El icono de ubicación permite informar de un permiso denegado", async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "geolocation", {
       configurable: true,
@@ -69,11 +69,22 @@ test("El icono de ubicación permite informar de un permiso denegado", async ({ 
     });
   });
   await page.goto("/");
+  const map = page.locator("#map");
+  const locationButton = map.getByRole("button", {
+    name: "Centrar en mi ubicación",
+  });
+  await expect(locationButton).toBeVisible();
   await openMenu(page);
   await expect(page.locator("#status")).toContainText("1 locales a 60 m");
-  if (await page.locator("#menuClose").isVisible())
+  if (testInfo.project.name === "mobile") {
+    await expect(page.locator("#menuToggle")).toHaveAttribute("aria-expanded", "true");
     await page.locator("#menuClose").click();
-  await page.locator("#map").getByRole("button", { name: "Centrar en mi ubicación" }).click();
+    await expect(page.locator("#menuToggle")).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator("#exploreMenu")).toBeHidden();
+  }
+  await expect(map).not.toHaveAttribute("inert");
+  await expect(locationButton).toBeVisible();
+  await locationButton.click();
   await openMenu(page);
   await expect(page.locator("#status")).toContainText("No se ha podido acceder a tu ubicación");
 });
