@@ -37,7 +37,6 @@ const {
   signIn,
   signOut,
   locate,
-  suggest,
   pickSuggestion,
   mapClick,
   firebaseAvailable,
@@ -119,9 +118,7 @@ async function selectedPlace(hit) {
         <button id="reload" :disabled="loading" @click="refresh">
           Buscar aquí</button
         ><button id="near" class="secondary" @click="locate">
-          Mi ubicación</button
-        ><button id="suggest" class="secondary" @click="suggest">
-          Proponer sitio
+          Mi ubicación
         </button>
       </div>
       <div id="status" role="status">{{ status }}</div>
