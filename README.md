@@ -150,7 +150,7 @@ El repositorio actual incluye **frontend, reglas y pruebas de Firestore**. El an
 - `.github/workflows/firebase-hosting-develop.yml`: despliegue de Hosting a `qyp-test` en cada push a `develop`, después de las pruebas y la compilación.
 - `.github/workflows/refresh-osm.yml`: cuando actualiza el catálogo OSM, también despliega reglas antes de Hosting.
 
-En los pull requests se ejecutan las pruebas y se publica solo una preview de Hosting: **no se modifican reglas de producción desde ramas de PR**.
+Los pull requests no ejecutan GitHub Actions ni publican previews de Hosting. Las pruebas y los despliegues se ejecutan al subir cambios a `develop` (sitio de test) o `main` (producción). Las ejecuciones manuales de despliegue están restringidas a su rama correspondiente y la actualización programada del catálogo OSM se ejecuta únicamente en `main`.
 
 Se reutiliza el secreto de GitHub existente `FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE`, que debe tener permiso `roles/firebaserules.admin` (o equivalente) en Firebase. Si el paso de publicar reglas devuelve 403, hay que añadir permisos a la cuenta del secreto; no hay que enviar credenciales por chat.
 
