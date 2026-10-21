@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, h, render } from "vue";
 import L from "leaflet";
+import { usesGeoCatalog } from "../lib/geo-catalog.js";
 import VenuePopup from "./VenuePopup.vue";
 import { safeLabel, coords } from "../lib/places.js";
 const props = defineProps({
@@ -15,7 +16,7 @@ const props = defineProps({
   revision: Number,
   inert: Boolean,
 });
-const emit = defineEmits(["ready", "review", "promoted", "map-click", "locate"]);
+const emit = defineEmits(["ready", "review", "promoted", "map-click", "locate", "moved"]);
 const container = ref(null);
 let map, observer, parkLayer, cafeLayer, publishedLayer;
 let markers = new Map(),
@@ -174,6 +175,7 @@ onMounted(() => {
   publishedLayer = L.layerGroup().addTo(map);
   observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
   observer.observe(container.value);
+  if (usesGeoCatalog) map.on("moveend", () => emit("moved"));
   map.on("click", (event) => emit("map-click", event.latlng));
   draw();
   emit("ready");

@@ -1,4 +1,4 @@
-# Publicar develop en el sitio de test sin desplegar reglas de Firestore.
+# Piloto geográfico en qyp-test; la importación utiliza únicamente osmCatalogTest.
 name: Deploy develop to qyp-test
 
 on:
@@ -39,10 +39,18 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Test desktop and mobile explorer
         run: npm run test:e2e
+      - name: Test geoqueries with Firestore emulator and browsers
+        run: npm run test:geo
+      - name: Build test site with geographic catalogue
+        run: npm run build:geo
       - name: Authenticate Firebase CLI
         uses: google-github-actions/auth@v3
         with:
           project_id: quintoyparque
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE }}
+      - name: Import Valencia into the test catalogue
+        run: npm run catalog:sync:test
+      - name: Publish rules including the read-only test catalogue
+        run: npx --no-install firebase deploy --project quintoyparque --config firebase.test.json --only firestore:rules --non-interactive
       - name: Deploy Hosting to qyp-test
         run: npx --no-install firebase deploy --project quintoyparque --config firebase.test.json --only hosting:test --non-interactive

@@ -188,6 +188,7 @@ async function main() {
     }
   } catch (err) {
     console.warn("No se pudo actualizar Overpass: " + err.message);
+    if (process.env.OSM_REQUIRE_REFRESH === "true") throw err;
     // Si falla Overpass conservamos los datos del repo.
     // Solo la primera importación usa la copia ya publicada en Firebase.
     snapshot = previous || await existingSnapshot();

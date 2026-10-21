@@ -8,6 +8,8 @@ import {
 } from "firebase/auth";
 import {
   getFirestore,
+  connectFirestoreEmulator,
+  documentId,
   collection,
   addDoc,
   writeBatch,
@@ -26,9 +28,14 @@ let auth;
 let db;
 try {
   if (config?.apiKey && config?.projectId) {
-    const app = initializeApp(config);
+    const emulator = import.meta.env.VITE_FIRESTORE_EMULATOR_HOST;
+    const app = initializeApp(emulator ? { ...config, projectId: "demo-quintoyparque" } : config);
     auth = getAuth(app);
     db = getFirestore(app);
+    if (emulator) {
+      const [host, port] = emulator.split(":");
+      connectFirestoreEmulator(db, host, Number(port));
+    }
     if (config.measurementId)
       void import("firebase/analytics")
         .then(async ({ getAnalytics, isSupported }) => {
@@ -40,6 +47,7 @@ try {
   console.warn("Firebase no está disponible", error);
 }
 
+export { db as firestore };
 export const firebaseAvailable = Boolean(auth && db);
 export const observeUser = (callback) =>
   auth ? onAuthStateChanged(auth, callback) : () => {};
@@ -60,9 +68,18 @@ const summary = (venue) => ({
 });
 const byDate = (a, b) =>
   (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
-export async function loadReviewedKeys() {
+export async function loadReviewedKeys(keys) {
   if (!db) return new Set();
-  const snap = await getDocs(collection(db, "osmReviews"));
+  const source = collection(db, "osmReviews");
+  if (keys) {
+    const result = new Set();
+    for (let index = 0; index < keys.length; index += 30) {
+      const snapshot = await getDocs(query(source, where(documentId(), "in", keys.slice(index, index + 30))));
+      snapshot.docs.forEach((item) => { if (item.data().reviewed === true) result.add(item.id); });
+    }
+    return result;
+  }
+  const snap = await getDocs(source);
   return new Set(
     snap.docs
       .filter((item) => item.data().reviewed === true)

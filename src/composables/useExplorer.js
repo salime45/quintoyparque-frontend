@@ -7,6 +7,7 @@ import {
   onUnmounted,
   nextTick,
 } from "vue";
+import { usesGeoCatalog } from "../lib/geo-catalog.js";
 import { loadVisiblePairs, getSearchCatalog } from "../services/catalog.js";
 import {
   firebaseAvailable,
@@ -37,6 +38,7 @@ export function useExplorer(mapView, closeMenu) {
   const suggestionOpen = ref(false),
     pickingSuggestion = ref(false);
   const reviewRevision = ref(0);
+  const searchRevision = ref(0);
   const places = computed(() =>
     visiblePlaces(
       pairs.value,
@@ -50,6 +52,11 @@ export function useExplorer(mapView, closeMenu) {
       .map((place) => publishedPlaceSearchEntry(place.id.slice(10), place))
       .filter(Boolean),
   );
+  let moveTimer;
+  function moved() {
+    clearTimeout(moveTimer);
+    moveTimer = setTimeout(refresh, 250);
+  }
   let sequence = 0,
     disposed = false;
   const stopAuth = observeUser((account) => {
@@ -61,12 +68,13 @@ export function useExplorer(mapView, closeMenu) {
     }
   });
   onUnmounted(() => {
+    clearTimeout(moveTimer);
     disposed = true;
     sequence++;
     stopAuth();
   });
   onMounted(() => {
-    void loadReviewedKeys()
+    if (!usesGeoCatalog) void loadReviewedKeys()
       .then((keys) => {
         if (!disposed)
           reviewedKeys.value = new Set([...keys, ...reviewedKeys.value]);
@@ -87,12 +95,13 @@ export function useExplorer(mapView, closeMenu) {
     const request = ++sequence;
     if (mapView.value.getZoom() < 12) {
       loading.value = false;
+      if (usesGeoCatalog) pairs.value = null;
       status.value =
         "Acerca el mapa para explorar los establecimientos de una zona.";
       return;
     }
     loading.value = true;
-    status.value = "Cargando parques y cafeterías de Valencia…";
+    status.value = "Cargando parques y locales de esta zona…";
     try {
       const { data, pairs: result } = await loadVisiblePairs(
         mapView.value.getBounds(),
@@ -108,11 +117,18 @@ export function useExplorer(mapView, closeMenu) {
         center.lng > area.east
       ) {
         pairs.value = null;
+        if (usesGeoCatalog) searchRevision.value++;
         status.value =
           "Esta zona todavía no está cubierta. Por ahora puedes explorar Valencia y alrededores.";
         return;
       }
       pairs.value = result;
+      if (usesGeoCatalog) searchRevision.value++;
+      if (usesGeoCatalog) {
+        void loadReviewedKeys(result.venues.map(osmVenueKey)).then((keys) => {
+          if (!disposed && request === sequence) reviewedKeys.value = new Set([...reviewedKeys.value, ...keys]);
+        }).catch((error) => console.warn("No se pudieron cargar los distintivos de esta zona", error));
+      }
       const date = new Date(data.generatedAt).toLocaleDateString("es-ES");
       status.value =
         result.parks.length +
@@ -124,11 +140,14 @@ export function useExplorer(mapView, closeMenu) {
         date +
         ". Terraza y visibilidad sin verificar.";
     } catch (error) {
-      if (!disposed && request === sequence)
+      if (!disposed && request === sequence) {
+        pairs.value = null;
+        if (usesGeoCatalog) searchRevision.value++;
         status.value =
           "No se pudo cargar el catálogo local. " +
           error.message +
           ". Inténtalo de nuevo en unos minutos.";
+      }
     } finally {
       if (request === sequence) loading.value = false;
     }
@@ -136,7 +155,7 @@ export function useExplorer(mapView, closeMenu) {
   watch(radius, refresh);
   async function searchCatalog() {
     return [
-      ...(await getSearchCatalog(radius.value)),
+      ...(await getSearchCatalog(radius.value, mapView.value.getBounds())),
       ...publishedEntries.value,
     ];
   }
@@ -245,7 +264,9 @@ export function useExplorer(mapView, closeMenu) {
     suggestionOpen,
     selection,
     reviewRevision,
+    searchRevision,
     refresh,
+    moved,
     searchCatalog,
     selectPlace,
     showPlace,

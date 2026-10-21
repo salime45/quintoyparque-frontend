@@ -1,10 +1,12 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from "vue";
+import { usesGeoCatalog } from "../lib/geo-catalog.js";
 import { findPlaces, normalizeSearchText } from "../lib/place-search.js";
 const props = defineProps({
   catalog: Function,
   radius: Number,
   published: Array,
+  revision: Number,
 });
 const emit = defineEmits(["select"]);
 const text = ref(""),
@@ -82,7 +84,7 @@ function outside(event) {
   if (!root.value?.contains(event.target)) close();
 }
 watch(
-  () => [props.radius, props.published],
+  () => [props.radius, props.published, props.revision],
   () => {
     if (text.value.trim()) void search();
   },
@@ -98,7 +100,7 @@ onUnmounted(() => {
     ref="root"
     class="place-search"
     role="search"
-    aria-label="Buscar lugares en Valencia"
+    aria-label="Buscar parques y locales"
     @keydown="keydown"
   >
     <label for="placeSearch">¿Qué sitio buscas?</label>
@@ -164,7 +166,7 @@ onUnmounted(() => {
       </button>
     </div>
     <p class="place-search__help">
-      Busca en toda Valencia y alrededores, no solo en el mapa visible.
+      {{ usesGeoCatalog ? "Busca entre los lugares de la zona del mapa. Muévelo para explorar otra zona." : "Busca en toda Valencia y alrededores, no solo en el mapa visible." }}
     </p>
   </div>
 </template>

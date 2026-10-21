@@ -5,6 +5,16 @@ service cloud.firestore {
     function admin() { return signedIn() && request.auth.token.admin == true; }
     function basicText(value, maxLength) { return value is string && value.size() > 0 && value.size() <= maxLength; }
 
+    // Catálogo OSM piloto: lectura pública, importación solo mediante Admin SDK.
+    match /osmCatalogTest/valencia {
+      allow get: if true;
+      allow write: if false;
+      match /places/{placeId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
     match /places/{placeId} {
       allow read: if resource.data.status == "published" || admin();
       allow create, update, delete: if admin();

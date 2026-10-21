@@ -292,3 +292,17 @@ test("A historical pending review can be promoted and indexed by its author", as
   const myListing=await assertSucceeds(getDoc(mirrorPath()));
   assert.equal(myListing.data().status,"published");
 });
+
+test("el catálogo geográfico de pruebas es público y ningún cliente puede modificarlo", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "osmCatalogTest/valencia"), { schemaVersion: 1 });
+    await setDoc(doc(ctx.firestore(), "osmCatalogTest/valencia/places/node_2"), { geohash: "ezp" });
+  });
+  await assertSucceeds(getDoc(doc(anonymous(), "osmCatalogTest/valencia")));
+  await assertSucceeds(getDocs(collection(anonymous(), "osmCatalogTest/valencia/places")));
+  for (const db of [anonymous(), user(), admin()]) {
+    await assertFails(setDoc(doc(db, "osmCatalogTest/valencia/places/node_2"), { geohash: "fake" }));
+    await assertFails(setDoc(doc(db, "osmCatalogTest/valencia"), { revision: "fake" }));
+  }
+  await assertFails(getDocs(collection(anonymous(), "osmCatalogTest/madrid/places")));
+});
