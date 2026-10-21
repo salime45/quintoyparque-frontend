@@ -1,7 +1,6 @@
 import { distanceBetween, geohashQueryBounds } from "geofire-common";
 
-export const CATALOG_REGION = "valencia";
-export const CATALOG_PATH = `osmCatalogTest/${CATALOG_REGION}`;
+import { regionForPosition, containsPosition } from "./catalog-regions.js";
 export const usesGeoCatalog = import.meta.env?.VITE_CATALOG_SOURCE === "firestore";
 
 // Consultas puntuales, sin listeners. Los rangos se reutilizan durante cinco
@@ -66,4 +65,40 @@ export function unpackGeoDocuments(documents) {
     if (parkMatch) matches.set(parkMatch.venueId, parkMatch);
   }
   return { elements: [...elements.values()], parkMatches: [...matches.values()] };
+}
+
+// Cada región mantiene sus metadatos y caché: dos revisiones con el mismo
+// valor en ciudades distintas nunca comparten resultados.
+export function createRegionalCatalog({ readMetadata, readRange }) {
+  const regions = new Map();
+  return async function loadSnapshot(bounds) {
+    const position = bounds.getCenter();
+    const region = regionForPosition(position);
+    if (!region) return { geo: true, covered: false, elements: [], parkMatches: [] };
+    let state = regions.get(region.id);
+    if (!state) {
+      state = { load: createGeoLoader((start, end) => readRange(region.id, start, end)) };
+      regions.set(region.id, state);
+    }
+    if (!state.metadata || Date.now() - state.metadataAt >= 300000) {
+      if (!state.pending) {
+        state.pending = Promise.resolve().then(() => readMetadata(region.id)).then((data) => {
+          if (data?.schemaVersion !== 1 || !data.coverage || !data.revision) {
+            throw Error(`El catálogo de ${region.label} todavía no está preparado`);
+          }
+          state.metadata = data;
+          state.metadataAt = Date.now();
+          return data;
+        }).finally(() => { state.pending = undefined; });
+      }
+      await state.pending;
+    }
+    const data = state.metadata;
+    if (!containsPosition(data.coverage, position)) {
+      return { geo: true, covered: false, elements: [], parkMatches: [] };
+    }
+    const area = queryArea(bounds);
+    const documents = await state.load(area.center, area.radius, data.revision);
+    return { ...data, ...unpackGeoDocuments(documents), geo: true, covered: true, region: region.id };
+  };
 }

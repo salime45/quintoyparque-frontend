@@ -2,6 +2,7 @@ import { initializeApp, deleteApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { readFile } from "node:fs/promises";
 import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
+import { getCatalogRegion } from "../src/lib/catalog-regions.js";
 import { buildCatalogDocuments } from "../scripts/catalog-documents.mjs";
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw Error("Esta semilla solo puede ejecutarse en el emulador");
@@ -28,6 +29,21 @@ try {
   }
   batch.set(db.doc("osmCatalogTest/valencia"), {
     schemaVersion: 1, revision: "e2e-v1", coverage: snapshot.coverage, generatedAt: snapshot.generatedAt,
+  });
+  const madrid = {
+    ...snapshot, coverage: getCatalogRegion("madrid").coverage,
+    elements: [
+      { id: "way/201", lat: 40.4169, lon: -3.7038, tags: { leisure: "playground", name: "Parque de Madrid" } },
+      { id: "node/200", lat: 40.4168, lon: -3.7038, tags: { amenity: "cafe", name: "Café de Madrid" } },
+      { id: "way/202", lat: 40.3081, lon: -3.7327, tags: { leisure: "playground", name: "Parque de Getafe" } },
+      { id: "node/203", lat: 40.308, lon: -3.7327, tags: { amenity: "cafe", name: "Café de Getafe" } },
+    ],
+  };
+  for (const [id, document] of buildCatalogDocuments(madrid)) {
+    batch.set(db.doc(`osmCatalogTest/madrid/places/${id}`), document);
+  }
+  batch.set(db.doc("osmCatalogTest/madrid"), {
+    schemaVersion: 1, revision: "e2e-v1", coverage: madrid.coverage, generatedAt: madrid.generatedAt,
   });
   await batch.commit();
 } finally {

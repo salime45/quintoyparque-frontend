@@ -48,7 +48,7 @@ jobs:
         with:
           project_id: quintoyparque
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE }}
-      - name: Import Valencia into the test catalogue
+      - name: Import Valencia and metropolitan Madrid into the test catalogue
         run: npm run catalog:sync:test
       - name: Publish rules including the read-only test catalogue
         run: npx --no-install firebase deploy --project quintoyparque --config firebase.test.json --only firestore:rules --non-interactive
