@@ -174,3 +174,81 @@ Los despliegues manuales desde este único repositorio pueden hacerse con `bash 
 ## Limitaciones actuales
 
 La cercanía es en línea recta, no tiempo de caminata. Los locales OSM pueden estar cerrados, no tener terraza o estar separados por una carretera. El estado de verificación y las opiniones comunitarias pertenecen a Firestore, no se mezclan con el catálogo externo. Las reseñas de bares del mapa aparecen inmediatamente; las sugerencias de nuevos lugares siguen requiriendo moderación.
+
+## Piloto de consultas geográficas en qyp-test
+
+La compilación de `develop` usa `VITE_CATALOG_SOURCE=firestore` y consulta
+`osmCatalogTest/valencia/places` por rangos de `geohash` con el SDK modular de
+Firebase y `geofire-common`. Producción continúa usando el JSON versionado.
+No se usa GeoFireX ni RxJS. Los IDs de OSM y las rutas de reseñas se conservan.
+
+Al abrir el mapa, pulsar «Buscar aquí» o «Mi ubicación», y al terminar de moverlo
+(con una espera de 250 ms), se consulta el círculo que contiene la vista más un
+margen de 150 m. No se admiten círculos mayores de 20 km: hay que acercar el mapa.
+Se descartan falsos positivos por distancia exacta y se deduplican los resultados.
+Los rangos consultados se guardan cinco minutos en memoria (máximo 64 rangos);
+los errores no quedan cacheados. Una revisión nueva invalida la caché cuando se
+renuevan los metadatos, también cada cinco minutos. Cambiar entre 60/100/150 m
+reutiliza esos datos: estos radios siguen midiendo local–zona infantil.
+
+Cada local importado incorpora las zonas infantiles a 150 m y la asociación al
+mismo parque calculada por geometría. Esto permite relacionarlo con un parque
+fuera de la vista o del círculo consultado. El buscador de texto del piloto busca
+**en la zona consultada**, no en toda Valencia ni en toda España. La interfaz
+explica ese alcance. Los distintivos OSM se consultan en grupos de hasta 30 IDs
+para los locales visibles, en lugar de descargar todos los resúmenes de reseñas.
+Las propuestas publicadas por la comunidad mantienen su carga existente desde
+`places`; la migración geográfica de esa colección no forma parte del piloto.
+
+### Importación y permisos
+
+- `npm run catalog:plan`: lee Firestore y muestra altas/cambios/bajas sin escribir.
+- `npm run catalog:sync:test`: sincroniza el JSON versionado **solo** con
+  `osmCatalogTest/valencia`. Nunca modifica cuentas, reseñas, sugerencias o `places`.
+- `npm run build:geo`: compila el piloto. `npm run build` conserva el modo JSON.
+
+El importador usa Firebase Admin con credenciales de aplicación predeterminadas
+(ADC). En GitHub Actions reutiliza el secreto ya existente; además del permiso de
+Hosting y reglas, esa cuenta necesita permisos de datos de Firestore
+(por ejemplo `roles/datastore.user`). No hay que copiar claves al repositorio.
+Las reglas permiten leer el catálogo de pruebas, pero ningún cliente —incluidos
+los administradores de la web— puede escribirlo: las escrituras son del Admin SDK.
+No se necesita un índice compuesto: se consulta únicamente el campo `geohash`.
+
+La sincronización valida el catálogo completo antes de escribir, conserva los
+lugares si la descarga OSM falla o pierde cobertura de forma sospechosa y solo
+reescribe documentos cuyo contenido cambia. Publica las altas/cambios antes de
+las bajas y actualiza los metadatos al terminar. Las escrituras se hacen en lotes:
+una interrupción puede dejar una actualización parcial, recuperable repitiendo
+la sincronización; no es una transacción global. Nunca elimina reseñas.
+Una copia versionada más antigua no sustituye una importación más reciente.
+
+El workflow de `develop` ejecuta pruebas y emulador, importa Valencia, publica
+las reglas y después Hosting en `qyp-test`. Como ambos sitios comparten Firebase,
+las reglas se publican en el proyecto compartido; el permiso añadido se limita
+al nuevo catálogo de pruebas. La cuenta de despliegue necesita los permisos
+anteriores antes del primer despliegue. La producción sigue compilándose sin
+activar este piloto.
+
+`Refresh geographic test catalogue` permite actualizar manualmente el piloto
+seleccionando `develop` y tiene una programación semanal. GitHub solo activa las
+programaciones cuando el archivo existe en la rama predeterminada; hasta que
+llegue a `main`, se puede lanzar manualmente desde `develop`. Si falla Overpass,
+ese workflow no inicia ninguna escritura en Firestore. Comparte el bloqueo de
+concurrencia con el despliegue de pruebas.
+
+### Verificación local sin acceso a producción
+
+`npm run test:geo` arranca Firestore emulado con `demo-quintoyparque`, importa el
+catálogo real versionado, verifica la segunda sincronización sin cambios y mide
+los documentos devueltos por una consulta de 1 km y su repetición desde caché.
+Después carga un catálogo pequeño controlado, compila contra el emulador y prueba
+la navegación en escritorio y móvil. Las pruebas bloquean las conexiones HTTPS
+externas y comprueban que no se descarga `osm-places.json`. Requiere Java 21 y
+Chromium de Playwright. La compilación resultante usa el emulador: ejecutar
+`npm run build:geo` después para generar la versión destinada a qyp-test.
+
+El número de documentos recibidos en esas pruebas es una medida de transferencia,
+no una estimación completa de facturación: Firestore también puede cobrar lecturas
+mínimas por consultas vacías y entradas de índice según la consulta. El consumo
+real debe observarse en Firebase durante el piloto.

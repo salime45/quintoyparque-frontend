@@ -69,7 +69,7 @@ export function buildProximityIndex(elements, radiusMeters=150) {
  * No se almacenan excepciones ni IDs escritos a mano. Las geometrías se
  * validan previamente en el servidor; aquí solo se consumen sus asociaciones.
  */
-export function filterVisiblePairs(elements, index, isVisible, radiusMeters=150, parkMatches=[]) {
+export function filterVisiblePairs(elements, index, isVisible, radiusMeters=150, parkMatches=[], includeOffscreenParks=false) {
   if(!Array.isArray(elements)||typeof isVisible!=="function"||
      !index?.parkIds||!index?.venueDistances||!Array.isArray(parkMatches)){
     throw new TypeError("Catálogo, índice o límites de parque incorrectos");
@@ -99,10 +99,10 @@ export function filterVisiblePairs(elements, index, isVisible, radiusMeters=150,
   for(const venue of candidatesV){
     let closest=null,best=Infinity;
     const counted=new Set();
-    for(const park of candidatesP){
+    for(const park of (includeOffscreenParks ? knownPlaygrounds.values() : candidatesP)){
       const d=distanceMeters(venue,park);
       if(d>radiusMeters)continue;
-      counted.add(park.id);
+      if (visibleParkIds.has(park.id)) counted.add(park.id);
       if(d<best){closest=park;best=d;}
     }
     const membershipRecord=membership.get(venue.id);

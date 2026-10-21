@@ -28,7 +28,9 @@ const {
   suggestionOpen,
   selection,
   reviewRevision,
+  searchRevision,
   refresh,
+  moved,
   searchCatalog,
   selectPlace,
   showPlace,
@@ -112,6 +114,7 @@ async function selectedPlace(hit) {
         :catalog="searchCatalog"
         :radius="radius"
         :published="publishedEntries"
+        :revision="searchRevision"
         @select="selectedPlace"
       />
       <div class="controls">
@@ -163,6 +166,7 @@ async function selectedPlace(hit) {
       :revision="reviewRevision"
       :inert="menuOpen"
       @ready="refresh"
+      @moved="moved"
       @review="openReview"
       @promoted="markReviewed"
       @map-click="mapClick"
