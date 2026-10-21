@@ -3,16 +3,21 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildCatalogDocuments, fingerprint, planCatalogSync } from "./catalog-documents.mjs";
-import { CATALOG_PATH } from "../src/lib/geo-catalog.js";
+import { catalogPath, getCatalogRegion, regionsFromArgs } from "../src/lib/catalog-regions.js";
 
-export async function syncCatalog(db, snapshot, { write = false } = {}) {
+export async function syncCatalog(db, snapshot, { write = false, region = "valencia" } = {}) {
+  const configuration = getCatalogRegion(region);
+  if (snapshot.region && snapshot.region !== region) throw Error("El catálogo no pertenece a la zona solicitada");
+  for (const key of ["south", "west", "north", "east"]) {
+    if (snapshot.coverage?.[key] !== configuration.coverage[key]) throw Error("La cobertura no coincide con la zona solicitada");
+  }
   const documents = buildCatalogDocuments(snapshot);
   // Guardas equivalentes al importador OSM antes de cualquier escritura.
   const parks = snapshot.elements.filter((item) => item.tags?.leisure === "playground").length;
   if (parks < 50 || documents.size - parks < 50 || (!Number.isInteger(snapshot.parkAreaCount) || snapshot.parkAreaCount < 50) || !snapshot.parkMatches.length) {
     throw Error("Catálogo demasiado pequeño: se conserva la importación anterior");
   }
-  const root = db.doc(CATALOG_PATH);
+  const root = db.doc(catalogPath(region));
   const collection = root.collection("places");
   const [current, metadata] = await Promise.all([collection.get(), root.get()]);
   const existing = new Map(current.docs.map((document) => [document.id, document.data()]));
@@ -25,7 +30,7 @@ export async function syncCatalog(db, snapshot, { write = false } = {}) {
     throw Error("Caída sospechosa del catálogo: no se realizará la sincronización");
   }
   const changes = planCatalogSync(documents, existing);
-  const summary = { total: documents.size, modified: changes.upserts.length, removed: changes.removed.length, write };
+  const summary = { region, total: documents.size, modified: changes.upserts.length, removed: changes.removed.length, write };
   console.log("Sincronización de pruebas:", JSON.stringify(summary));
   if (!write) return summary;
   // Publicar altas/cambios antes de retirar lugares; nunca borrar reseñas.
@@ -42,7 +47,7 @@ export async function syncCatalog(db, snapshot, { write = false } = {}) {
     await batch.commit();
   }
   const data = {
-    schemaVersion: 1,
+    schemaVersion: 1, region,
     revision: fingerprint([...documents].map(([id, item]) => [id, item.contentHash])),
     generatedAt: snapshot.generatedAt, coverage: snapshot.coverage,
     source: snapshot.source, license: snapshot.license,
@@ -59,8 +64,15 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const projectId = emulator ? "demo-quintoyparque" : "quintoyparque";
   const app = initializeApp({ projectId, ...(emulator ? {} : { credential: applicationDefault() }) });
   try {
-    const snapshot = JSON.parse(await readFile(new URL("../public/data/osm-places.json", import.meta.url), "utf8"));
-    await syncCatalog(getFirestore(app), snapshot, { write: process.argv.includes("--write") });
+    // Preparar todas las entradas antes de iniciar escrituras evita importar
+    // Valencia y descubrir después que falta el archivo de Madrid.
+    const inputs = await Promise.all(regionsFromArgs(process.argv.slice(2)).map(async (region) => ({
+      region,
+      snapshot: JSON.parse(await readFile(new URL(`../public/data/${region.snapshot}`, import.meta.url), "utf8")),
+    })));
+    for (const { region, snapshot } of inputs) {
+      await syncCatalog(getFirestore(app), snapshot, { write: process.argv.includes("--write"), region: region.id });
+    }
   } finally {
     const { deleteApp } = await import("firebase-admin/app");
     await deleteApp(app);

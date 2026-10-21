@@ -110,16 +110,18 @@ export function useExplorer(mapView, closeMenu) {
       if (disposed || request !== sequence) return;
       const center = mapView.value.getCenter(),
         area = data.coverage;
-      if (
+      if (data.geo ? !data.covered : (
         center.lat < area.south ||
         center.lat > area.north ||
         center.lng < area.west ||
         center.lng > area.east
-      ) {
+      )) {
         pairs.value = null;
         if (usesGeoCatalog) searchRevision.value++;
         status.value =
-          "Esta zona todavía no está cubierta. Por ahora puedes explorar Valencia y alrededores.";
+          usesGeoCatalog
+            ? "Esta zona todavía no está cubierta. Puedes explorar Valencia, Madrid y sus alrededores."
+            : "Esta zona todavía no está cubierta. Por ahora puedes explorar Valencia y alrededores.";
         return;
       }
       pairs.value = result;

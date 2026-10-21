@@ -6,11 +6,11 @@ service cloud.firestore {
     function basicText(value, maxLength) { return value is string && value.size() > 0 && value.size() <= maxLength; }
 
     // Catálogo OSM piloto: lectura pública, importación solo mediante Admin SDK.
-    match /osmCatalogTest/valencia {
-      allow get: if true;
+    match /osmCatalogTest/{region} {
+      allow get: if region in ["valencia", "madrid"];
       allow write: if false;
       match /places/{placeId} {
-        allow read: if true;
+        allow read: if region in ["valencia", "madrid"];
         allow write: if false;
       }
     }
@@ -157,8 +157,10 @@ service cloud.firestore {
         && basicText(request.resource.data.comment, 700)
         && request.resource.data.lat is number
         && request.resource.data.lng is number
-        && request.resource.data.lat >= 38 && request.resource.data.lat <= 41
-        && request.resource.data.lng >= -2 && request.resource.data.lng <= 1
+        && ((request.resource.data.lat >= 38 && request.resource.data.lat <= 41
+          && request.resource.data.lng >= -2 && request.resource.data.lng <= 1)
+          || (request.resource.data.lat >= 40.16 && request.resource.data.lat <= 40.72
+          && request.resource.data.lng >= -4.03 && request.resource.data.lng <= -3.20))
         && request.resource.data.status == "pending"
         && request.resource.data.createdAt == request.time;
       allow update, delete: if admin();

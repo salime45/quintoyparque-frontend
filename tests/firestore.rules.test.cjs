@@ -86,6 +86,8 @@ test("only logged-in users can submit a pending proposal in Valencia", async () 
   await assertFails(setDoc(doc(user(), "suggestions", "forged"), proposal("someone-else")));
   await assertFails(setDoc(doc(user(), "suggestions", "published"), proposal("person-1", { status: "published" })));
   await assertFails(setDoc(doc(user(), "suggestions", "outside"), proposal("person-1", { lat: 60 })));
+  await assertSucceeds(setDoc(doc(user(), "suggestions", "madrid"), proposal("person-1", { lat: 40.4168, lng: -3.7038 })));
+  await assertFails(setDoc(doc(user(), "suggestions", "outside-madrid"), proposal("person-1", { lat: 40.4168, lng: -4.5 })));
 });
 
 test("suggestions are private to administrators", async () => {
@@ -304,5 +306,11 @@ test("el catálogo geográfico de pruebas es público y ningún cliente puede mo
     await assertFails(setDoc(doc(db, "osmCatalogTest/valencia/places/node_2"), { geohash: "fake" }));
     await assertFails(setDoc(doc(db, "osmCatalogTest/valencia"), { revision: "fake" }));
   }
-  await assertFails(getDocs(collection(anonymous(), "osmCatalogTest/madrid/places")));
+  await assertSucceeds(getDoc(doc(anonymous(), "osmCatalogTest/madrid")));
+  await assertSucceeds(getDocs(collection(anonymous(), "osmCatalogTest/madrid/places")));
+  for (const db of [anonymous(), user(), admin()]) {
+    await assertFails(setDoc(doc(db, "osmCatalogTest/madrid/places/node_2"), { geohash: "fake" }));
+    await assertFails(setDoc(doc(db, "osmCatalogTest/madrid"), { revision: "fake" }));
+  }
+  await assertFails(getDocs(collection(anonymous(), "osmCatalogTest/barcelona/places")));
 });

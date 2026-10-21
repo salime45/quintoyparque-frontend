@@ -17,7 +17,7 @@ jobs:
   refresh:
     if: github.event_name == 'schedule' || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,10 +26,10 @@ jobs:
         with:
           node-version: "24"
       - run: npm ci --no-audit --no-fund
-      - name: Download complete Valencia snapshot
+      - name: Download complete Valencia and Madrid snapshots
         env:
           OSM_REQUIRE_REFRESH: "true"
-        run: node scripts/refresh-osm.mjs
+        run: node scripts/refresh-osm.mjs --region=all
       - uses: google-github-actions/auth@v3
         with:
           project_id: quintoyparque

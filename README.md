@@ -178,7 +178,7 @@ La cercanía es en línea recta, no tiempo de caminata. Los locales OSM pueden e
 ## Piloto de consultas geográficas en qyp-test
 
 La compilación de `develop` usa `VITE_CATALOG_SOURCE=firestore` y consulta
-`osmCatalogTest/valencia/places` por rangos de `geohash` con el SDK modular de
+`osmCatalogTest/{zona}/places` (`valencia` y `madrid`) por rangos de `geohash` con el SDK modular de
 Firebase y `geofire-common`. Producción continúa usando el JSON versionado.
 No se usa GeoFireX ni RxJS. Los IDs de OSM y las rutas de reseñas se conservan.
 
@@ -204,7 +204,7 @@ Las propuestas publicadas por la comunidad mantienen su carga existente desde
 
 - `npm run catalog:plan`: lee Firestore y muestra altas/cambios/bajas sin escribir.
 - `npm run catalog:sync:test`: sincroniza el JSON versionado **solo** con
-  `osmCatalogTest/valencia`. Nunca modifica cuentas, reseñas, sugerencias o `places`.
+  `osmCatalogTest/valencia` y `osmCatalogTest/madrid`. Nunca modifica cuentas, reseñas, sugerencias o `places`.
 - `npm run build:geo`: compila el piloto. `npm run build` conserva el modo JSON.
 
 El importador usa Firebase Admin con credenciales de aplicación predeterminadas
@@ -223,7 +223,7 @@ una interrupción puede dejar una actualización parcial, recuperable repitiendo
 la sincronización; no es una transacción global. Nunca elimina reseñas.
 Una copia versionada más antigua no sustituye una importación más reciente.
 
-El workflow de `develop` ejecuta pruebas y emulador, importa Valencia, publica
+El workflow de `develop` ejecuta pruebas y emulador, importa ambas zonas, publica
 las reglas y después Hosting en `qyp-test`. Como ambos sitios comparten Firebase,
 las reglas se publican en el proyecto compartido; el permiso añadido se limita
 al nuevo catálogo de pruebas. La cuenta de despliegue necesita los permisos
@@ -252,3 +252,52 @@ El número de documentos recibidos en esas pruebas es una medida de transferenci
 no una estimación completa de facturación: Firestore también puede cobrar lecturas
 mínimas por consultas vacías y entradas de índice según la consulta. El consumo
 real debe observarse en Firebase durante el piloto.
+
+
+### Madrid capital y área metropolitana
+
+El piloto incluye Madrid, Alcobendas, San Sebastián de los Reyes, Tres Cantos,
+Pozuelo, Majadahonda, Las Rozas, Boadilla, Alcorcón, Móstoles, Leganés, Getafe,
+Fuenlabrada, Parla, Pinto, Rivas, Coslada, San Fernando, Torrejón y Alcalá de
+Henares. Es una cobertura rectangular aproximada de latitud 40.16–40.72 y longitud
+-4.03–-3.20; también recoge lugares de zonas intermedias. No representa límites
+administrativos exactos ni garantiza que todos los lugares estén registrados en
+OSM o tengan un local próximo a un parque infantil.
+
+`src/lib/catalog-regions.js` centraliza centros del mapa, cobertura, nombres de
+archivos y partición de las descargas. Madrid se descarga en 16 sectores para
+reducir el tamaño de las consultas Overpass. `public/data/osm-madrid.json` conserva
+el catálogo inicial real, con licencia ODbL, fecha y asociaciones geométricas.
+Valencia mantiene `public/data/osm-places.json` y su ruta actual de Firestore.
+
+El centro del mapa determina automáticamente qué catálogo consultar. Los
+metadatos y la caché se mantienen por región; salir de ambas coberturas muestra
+el aviso correspondiente sin consultar catálogos ajenos. No se amplía un único
+rectángulo entre Valencia y Madrid. «Mi ubicación» funciona en ambas zonas.
+`https://qyp-test.web.app/?zona=madrid` abre directamente Madrid; `?zona=valencia`
+abre Valencia. Los parámetros desconocidos conservan el centro inicial de
+Valencia. El buscador de texto mantiene el alcance local a la zona consultada.
+
+Para actualizar o planificar una región concreta:
+
+```bash
+OSM_REQUIRE_REFRESH=true node scripts/refresh-osm.mjs --region=madrid
+node scripts/sync-firestore-catalog.mjs --region=madrid
+node scripts/sync-firestore-catalog.mjs --region=madrid --write
+```
+
+`--region=all` procesa ambas zonas. Los comandos npm `catalog:plan` y
+`catalog:sync:test` ya incluyen ambas. La sincronización rechaza un catálogo cuyo
+identificador o cobertura no corresponda a la región de destino; las bajas se
+limitan a esa región. Una descarga fallida conserva la copia anterior. La
+actualización semanal del piloto descarga ambas antes de iniciar la importación.
+La actualización de producción sigue solicitando solo Valencia por defecto.
+
+Las reglas permiten leer exclusivamente los dos catálogos configurados y
+mantienen prohibidas las escrituras desde clientes. Las propuestas de Madrid y
+su área metropolitana también se aceptan, siempre autenticadas y pendientes de
+moderación, conservando la validación anterior de Valencia.
+
+Las pruebas añaden cambios Valencia–Madrid–Valencia, apertura del enlace de
+Madrid, geolocalización en Getafe, importación de los dos catálogos reales sin
+borrar la otra región y rechazo de una importación al destino equivocado.

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, h, render } from "vue";
 import L from "leaflet";
+import { getCatalogRegion, catalogRegions } from "../lib/catalog-regions.js";
 import { usesGeoCatalog } from "../lib/geo-catalog.js";
 import VenuePopup from "./VenuePopup.vue";
 import { safeLabel, coords } from "../lib/places.js";
@@ -150,7 +151,9 @@ watch(
 );
 watch(() => [props.uid, props.revision], updatePopup);
 onMounted(() => {
-  map = L.map(container.value).setView([39.4699, -0.3763], 13);
+  const requested = usesGeoCatalog ? new URLSearchParams(window.location.search).get("zona") : null;
+  const region = getCatalogRegion(catalogRegions.some((item) => item.id === requested) ? requested : "valencia");
+  map = L.map(container.value).setView(region.center, 13);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution:
@@ -216,7 +219,7 @@ defineExpose({
   <div
     id="map"
     ref="container"
-    aria-label="Mapa interactivo de Valencia"
+    :aria-label="usesGeoCatalog ? 'Mapa interactivo de parques y locales' : 'Mapa interactivo de Valencia'"
     :inert="inert"
   ></div>
 </template>
