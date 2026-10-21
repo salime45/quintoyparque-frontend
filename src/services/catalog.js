@@ -1,4 +1,6 @@
 import { buildProximityIndex, filterVisiblePairs } from "../lib/proximity.js";
+import { usesGeoCatalog } from "../lib/geo-catalog.js";
+import { loadGeoSnapshot } from "./geo-catalog.js";
 import { buildPlaceSearchCatalog } from "../lib/place-search.js";
 
 let snapshotPromise;
@@ -27,19 +29,24 @@ export function loadSnapshot() {
   return snapshotPromise;
 }
 export async function loadVisiblePairs(bounds, radius) {
-  const data = await loadSnapshot();
+  const data = usesGeoCatalog ? await loadGeoSnapshot(bounds) : await loadSnapshot();
   return {
     data,
     pairs: filterVisiblePairs(
       data.elements,
-      proximity,
+      data.geo ? buildProximityIndex(data.elements, 150) : proximity,
       (item) => bounds.contains([item.lat, item.lon]),
       radius,
       data.parkMatches || [],
+      Boolean(data.geo),
     ),
   };
 }
-export async function getSearchCatalog(radius) {
+export async function getSearchCatalog(radius, bounds) {
+  if (usesGeoCatalog) {
+    const data = await loadGeoSnapshot(bounds);
+    return buildPlaceSearchCatalog(data.elements, buildProximityIndex(data.elements, 150), data.parkMatches, radius);
+  }
   const data = await loadSnapshot();
   if (!searches.has(radius))
     searches.set(

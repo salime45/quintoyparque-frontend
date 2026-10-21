@@ -1,7 +1,7 @@
 /**
- * Actualiza una copia local de parques y bares/cafeterías de Valencia con Overpass.
+ * Actualiza copias locales de parques y locales por zona con Overpass.
  * Esta tarea se ejecuta en GitHub Actions (servidor), NO en los navegadores.
- * La web carga public/data/osm-places.json desde su propio origen Firebase.
+ * El modo JSON carga Valencia; el piloto importa cada zona a Firestore.
  *
  * Datos: © OpenStreetMap contributors, licencia ODbL.
  * https://www.openstreetmap.org/copyright
@@ -9,25 +9,15 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { regionsFromArgs, regionTiles } from "../src/lib/catalog-regions.js";
 import { normalizeParkArea, computeParkMatches } from "./osm-park-geometry.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const outputPath = join(root, "public", "data", "osm-places.json");
 const endpoints = [
   // Esta instancia respondió correctamente para Valencia en la primera prueba de CI.
   "https://overpass.openstreetmap.fr/api/interpreter",
   "https://overpass-api.de/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
-];
-// Valencia ciudad + área metropolitana próxima; el producto empieza aquí.
-const coverage = { south: 39.28, west: -0.62, north: 39.67, east: -0.20 };
-const midLat = (coverage.north + coverage.south) / 2;
-const midLon = (coverage.east + coverage.west) / 2;
-const tiles = [
-  [coverage.south, coverage.west, midLat, midLon],
-  [coverage.south, midLon, midLat, coverage.east],
-  [midLat, coverage.west, coverage.north, midLon],
-  [midLat, midLon, coverage.north, coverage.east],
 ];
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -61,12 +51,12 @@ function normalize(el) {
   }
   return { id: el.type + "/" + el.id, lat, lon, tags: cleanTags };
 }
-async function fetchOneTile(tile, index, kind="places") {
+async function fetchOneTile(tile, index, kind="places", tileCount) {
   const q=kind==="parks"?buildParkQuery(tile):buildQuery(tile);
   const failures = [];
   for (const endpoint of endpoints) {
     try {
-      console.log("Consultando "+kind+" zona " + index + "/" + tiles.length + " en " + new URL(endpoint).host);
+      console.log("Consultando "+kind+" zona " + index + "/" + tileCount + " en " + new URL(endpoint).host);
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -110,7 +100,7 @@ function validateSnapshot(snapshot) {
   console.log("Dataset listo: " + parks + " zonas infantiles / " + venues + " locales");
   return snapshot;
 }
-async function readCommittedSnapshot() {
+async function readCommittedSnapshot(outputPath) {
   try {
     return validateSnapshot(JSON.parse(await readFile(outputPath, "utf8")));
   } catch (error) {
@@ -118,8 +108,8 @@ async function readCommittedSnapshot() {
     throw Error("El snapshot versionado es inválido: " + error.message);
   }
 }
-async function existingSnapshot() {
-  const url = "https://quintoyparque.web.app/data/osm-places.json";
+async function existingSnapshot(region) {
+  const url = "https://quintoyparque.web.app/data/" + region.snapshot;
   console.warn("Primera importación: recuperando el catálogo publicado en Firebase.");
   const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!response.ok) throw Error("No hay copia publicada (" + response.status + ")");
@@ -134,8 +124,12 @@ function compareElements(snapshot) {
     parkMatches: snapshot.parkMatches,
   });
 }
-async function main() {
-  const previous = await readCommittedSnapshot();
+async function main(region) {
+  const outputPath = join(root, "public", "data", region.snapshot);
+  const coverage = region.coverage;
+  const tiles = regionTiles(region);
+  console.log("Actualizando " + region.label);
+  const previous = await readCommittedSnapshot(outputPath);
   let snapshot;
   try {
     const items = [];
@@ -143,11 +137,11 @@ async function main() {
     // cualquiera de ambas fuentes, se conserva íntegro el catálogo anterior.
     const boundaries=[];
     for(let i=0;i<tiles.length;i++){
-      items.push(...(await fetchOneTile(tiles[i],i+1,"places")));
+      items.push(...(await fetchOneTile(tiles[i],i+1,"places",tiles.length)));
       await sleep(950);
     }
     for(let i=0;i<tiles.length;i++){
-      boundaries.push(...(await fetchOneTile(tiles[i],i+1,"parks")));
+      boundaries.push(...(await fetchOneTile(tiles[i],i+1,"parks",tiles.length)));
       await sleep(950);
     }
     const unique = new Map();
@@ -164,6 +158,7 @@ async function main() {
     const parkMatches=computeParkMatches(elements,[...areas.values()]);
     snapshot = validateSnapshot({
       schemaVersion: 2,
+      region: region.id,
       generatedAt: new Date().toISOString(),
       source: "OpenStreetMap contributors / Overpass API",
       license: "ODbL",
@@ -188,9 +183,10 @@ async function main() {
     }
   } catch (err) {
     console.warn("No se pudo actualizar Overpass: " + err.message);
+    if (process.env.OSM_REQUIRE_REFRESH === "true") throw err;
     // Si falla Overpass conservamos los datos del repo.
     // Solo la primera importación usa la copia ya publicada en Firebase.
-    snapshot = previous || await existingSnapshot();
+    snapshot = previous || await existingSnapshot(region);
   }
   snapshot.elements.sort((a, b) => a.id.localeCompare(b.id));
   if (previous && compareElements(snapshot) === compareElements(previous)) {
@@ -201,4 +197,4 @@ async function main() {
   await writeFile(outputPath, JSON.stringify(snapshot));
   console.log("Escrito " + outputPath + " (" + snapshot.elements.length + " lugares, "+snapshot.parkAreaCount+" límites, "+snapshot.parkMatches.length+" relaciones geométricas)");
 }
-await main();
+for (const region of regionsFromArgs(process.argv.slice(2))) await main(region);

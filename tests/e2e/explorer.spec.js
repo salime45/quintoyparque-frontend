@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+test.skip(process.env.CATALOG_E2E === "geo", "Cubierto por las pruebas con Firestore emulado");
 const catalog = {
   schemaVersion: 2,
   generatedAt: "2026-10-01T00:00:00Z",

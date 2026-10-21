@@ -1,4 +1,5 @@
 <script setup>
+import { usesGeoCatalog } from "../lib/geo-catalog.js";
 defineProps({ user: Object, available: Boolean, menuOpen: Boolean });
 defineEmits(["toggle-menu", "login", "logout", "my-reviews"]);
 </script>
@@ -36,7 +37,7 @@ defineEmits(["toggle-menu", "login", "logout", "my-reviews"]);
       />
       <div class="brand-copy">
         <h1 class="sr-only">Quinto y Parque</h1>
-        <p class="eyebrow">Valencia y alrededores</p>
+        <p class="eyebrow">{{ usesGeoCatalog ? "Valencia, Madrid y alrededores" : "Valencia y alrededores" }}</p>
         <p class="hero-title">
           Tu terraza favorita.<br /><span>Su parque ideal.</span>
         </p>
