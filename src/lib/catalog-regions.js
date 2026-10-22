@@ -51,3 +51,13 @@ export function regionsFromArgs(args) {
   const id = option?.slice("--region=".length) || "valencia";
   return id === "all" ? catalogRegions : [getCatalogRegion(id)];
 }
+
+export const nationalCoverage = { south: 27.5, west: -18.3, north: 43.9, east: 4.6 };
+// Extensiones aproximadas de las fuentes; los lugares proceden del extracto OSM.
+export const nationalAreas = [
+  { south: 35.95, west: -9.6, north: 43.9, east: 4.6 },
+  { south: 27.5, west: -18.3, north: 29.5, east: -13.3 },
+  { south: 35.85, west: -5.4, north: 35.94, east: -5.23 },
+  { south: 35.25, west: -2.99, north: 35.34, east: -2.9 },
+];
+export const withinNationalArea = (position) => nationalAreas.some((area) => containsPosition(area, position));

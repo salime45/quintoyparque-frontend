@@ -14,7 +14,13 @@
     "catalog:plan": "node scripts/sync-firestore-catalog.mjs --region=all",
     "catalog:sync:test": "node scripts/sync-firestore-catalog.mjs --region=all --write",
     "build:geo": "VITE_CATALOG_SOURCE=firestore vite build",
-    "test:geo": "firebase emulators:exec --project demo-quintoyparque --only firestore \"node --test tests/firestore-catalog.integration.mjs && node tests/seed-geo-emulator.mjs && VITE_CATALOG_SOURCE=firestore VITE_FIRESTORE_EMULATOR_HOST=127.0.0.1:8188 vite build && CATALOG_E2E=geo playwright test\""
+    "test:geo": "firebase emulators:exec --project demo-quintoyparque --only firestore \"node --test tests/firestore-catalog.integration.mjs && node tests/seed-geo-emulator.mjs && VITE_CATALOG_SOURCE=firestore VITE_FIRESTORE_EMULATOR_HOST=127.0.0.1:8188 vite build && CATALOG_E2E=geo playwright test\"",
+    "catalog:es:setup": "node scripts/national/setup.mjs",
+    "catalog:es:download": "node scripts/national/download.mjs",
+    "catalog:es:prepare": "node --max-old-space-size=3072 scripts/national/prepare.mjs",
+    "catalog:es:report": "node scripts/national/cli.mjs",
+    "catalog:es:import": "node scripts/national/cli.mjs --write",
+    "test:osm": "node scripts/national/test-parser.mjs"
   },
   "engines": {
     "node": ">=22.12.0"

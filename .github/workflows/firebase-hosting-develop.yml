@@ -29,6 +29,11 @@ jobs:
           java-version: "21"
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Test local OSM parser with small fixtures
+        run: npm run catalog:es:setup && npm run test:osm
       - name: Test frontend
         run: npm test
       - name: Test Firestore rules with local emulator
@@ -48,8 +53,6 @@ jobs:
         with:
           project_id: quintoyparque
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE }}
-      - name: Import Valencia and metropolitan Madrid into the test catalogue
-        run: npm run catalog:sync:test
       - name: Publish rules including the read-only test catalogue
         run: npx --no-install firebase deploy --project quintoyparque --config firebase.test.json --only firestore:rules --non-interactive
       - name: Deploy Hosting to qyp-test

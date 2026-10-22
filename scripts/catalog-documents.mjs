@@ -31,13 +31,29 @@ export function buildCatalogDocuments(snapshot) {
     }
     matches.set(match.venueId, match);
   }
+  const grid = new Map();
+  const cell = (point) => [Math.floor(point.lat / 0.005), Math.floor(point.lon / 0.005)];
+  for (const park of parks) {
+    const [lat, lon] = cell(park), key = `${lat}:${lon}`;
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(park);
+  }
+  function nearbyParks(venue) {
+    const [lat, lon] = cell(venue), result = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      for (const park of grid.get(`${lat + dy}:${lon + dx}`) || []) {
+        if (distance(venue, park) <= 151) result.push(park);
+      }
+    }
+    return result;
+  }
   const documents = new Map();
   for (const element of snapshot.elements) {
     const document = { ...element, geohash: geohashForLocation([element.lat, element.lon]) };
     if (isVenue(element)) {
       // Incluir los puntos relacionados hace que una consulta de locales no
       // dependa de que su zona infantil caiga en el círculo consultado.
-      const nearby = parks.filter((park) => distance(element, park) <= 151);
+      const nearby = nearbyParks(element);
       const match = matches.get(element.id);
       if (match) {
         const playground = byId.get(match.playgroundId);

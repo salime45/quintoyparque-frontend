@@ -66,3 +66,20 @@ test("Importación real, consultas acotadas y sincronización idempotente", asyn
     await deleteApp(app);
   }
 });
+
+test("Importador nacional REST: presupuesto real, reanudación y activación final", async () => {
+  const { createBundle } = await import("../scripts/national/bundle.mjs");
+  const { importBundle } = await import("../scripts/national/importer.mjs");
+  const { createRestStore } = await import("../scripts/national/rest-store.mjs");
+  const { nationalFixture } = await import("./national-fixture.mjs");
+  const { manifest, blocks } = createBundle(nationalFixture());
+  const store = createRestStore({ projectId: "demo-quintoyparque", emulator: process.env.FIRESTORE_EMULATOR_HOST, token: async () => "owner" });
+  const load = async (id) => blocks.find((block) => block.id === id).records;
+  const paused = await importBundle(store, manifest, load, { maxWrites: 6, sleep: async () => {} });
+  assert.equal(paused.complete, false);
+  assert.equal(await store.get("osmCatalogTest/espana"), null);
+  const done = await importBundle(store, manifest, load, { maxWrites: 100, sleep: async () => {} });
+  assert.equal(done.complete, true);
+  assert.equal((await store.get("osmCatalogTest/espana")).data.complete, true);
+  assert.equal((await importBundle(store, manifest, load, { maxWrites: 6 })).writes, 0);
+});

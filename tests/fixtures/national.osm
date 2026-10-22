@@ -1,0 +1,13 @@
+<osm version="0.6" generator="fixture">
+ <node id="1" lat="39.4700" lon="-0.3800" version="1"/>
+ <node id="2" lat="39.4700" lon="-0.3700" version="1"/>
+ <node id="3" lat="39.4800" lon="-0.3700" version="1"/>
+ <node id="4" lat="39.4800" lon="-0.3800" version="1"/>
+ <node id="5" lat="39.4720" lon="-0.3780" version="1"><tag k="leisure" v="playground"/></node>
+ <node id="6" lat="39.4721" lon="-0.3780" version="1"><tag k="amenity" v="cafe"/><tag k="name" v="Café de prueba"/></node>
+ <way id="10" version="1"><nd ref="1"/><nd ref="2"/><nd ref="3"/><nd ref="4"/><nd ref="1"/><tag k="leisure" v="park"/></way>
+ <way id="11" version="1"><nd ref="1"/><nd ref="2"/><tag k="amenity" v="bar"/></way>
+ <way id="12" version="1"><nd ref="1"/><nd ref="999"/><tag k="leisure" v="park"/></way>
+ <relation id="20" version="1"><member type="way" ref="10" role="outer"/><tag k="type" v="multipolygon"/><tag k="leisure" v="park"/></relation>
+ <relation id="21" version="1"><member type="relation" ref="20" role="outer"/><tag k="leisure" v="park"/></relation>
+</osm>

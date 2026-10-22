@@ -45,6 +45,23 @@ try {
   batch.set(db.doc("osmCatalogTest/madrid"), {
     schemaVersion: 1, revision: "e2e-v1", coverage: madrid.coverage, generatedAt: madrid.generatedAt,
   });
+  const national = {
+    ...snapshot,
+    elements: [
+      ...snapshot.elements, ...madrid.elements,
+      { id: "node/300", lat: 41.3874, lon: 2.1686, tags: { amenity: "cafe", name: "Café de Barcelona" } },
+      { id: "way/301", lat: 41.3875, lon: 2.1686, tags: { leisure: "playground", name: "Parque de Barcelona" } },
+      { id: "node/400", lat: 28.1235, lon: -15.4363, tags: { amenity: "cafe", name: "Café de Canarias" } },
+      { id: "way/401", lat: 28.1236, lon: -15.4363, tags: { leisure: "playground", name: "Parque de Canarias" } },
+    ],
+  };
+  for (const [id, document] of buildCatalogDocuments(national)) {
+    batch.set(db.doc(`osmCatalogTest/espana/places/${id}`), document);
+  }
+  batch.set(db.doc("osmCatalogTest/espana"), {
+    schemaVersion: 1, complete: true, revision: "national-e2e-v1", generatedAt: national.generatedAt,
+    coverage: { south: 27.5, west: -18.3, north: 43.9, east: 4.6 },
+  });
   await batch.commit();
 } finally {
   await env.cleanup();

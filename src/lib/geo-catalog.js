@@ -102,3 +102,24 @@ export function createRegionalCatalog({ readMetadata, readRange }) {
     return { ...data, ...unpackGeoDocuments(documents), geo: true, covered: true, region: region.id };
   };
 }
+
+// El catálogo publicado solo cambia cuando el importador termina todos los
+// bloques. Hasta entonces, se conservan los catálogos regionales disponibles.
+export function createNationalCatalog({ legacy, readMetadata, readRange, withinArea }) {
+  let metadata, checkedAt = 0, pending;
+  const load = createGeoLoader(readRange);
+  return async (bounds) => {
+    if (!withinArea(bounds.getCenter())) return legacy(bounds);
+    if (!checkedAt || Date.now() - checkedAt >= 300000) {
+      if (!pending) pending = Promise.resolve().then(readMetadata).then((data) => {
+        metadata = data;
+        checkedAt = Date.now();
+      }).finally(() => { pending = undefined; });
+      await pending;
+    }
+    if (!metadata?.complete || metadata.schemaVersion !== 1 || !metadata.revision) return legacy(bounds);
+    const area = queryArea(bounds);
+    const documents = await load(area.center, area.radius, metadata.revision);
+    return { ...metadata, ...unpackGeoDocuments(documents), geo: true, covered: true, region: "espana" };
+  };
+}

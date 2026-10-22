@@ -7,10 +7,11 @@ service cloud.firestore {
 
     // Catálogo OSM piloto: lectura pública, importación solo mediante Admin SDK.
     match /osmCatalogTest/{region} {
-      allow get: if region in ["valencia", "madrid"];
+      allow get: if region in ["valencia", "madrid", "espana"];
       allow write: if false;
       match /places/{placeId} {
-        allow read: if region in ["valencia", "madrid"];
+        allow read: if region in ["valencia", "madrid"]
+          || (region == "espana" && get(/databases/$(database)/documents/osmCatalogTest/espana).data.complete == true);
         allow write: if false;
       }
     }
@@ -160,7 +161,15 @@ service cloud.firestore {
         && ((request.resource.data.lat >= 38 && request.resource.data.lat <= 41
           && request.resource.data.lng >= -2 && request.resource.data.lng <= 1)
           || (request.resource.data.lat >= 40.16 && request.resource.data.lat <= 40.72
-          && request.resource.data.lng >= -4.03 && request.resource.data.lng <= -3.20))
+          && request.resource.data.lng >= -4.03 && request.resource.data.lng <= -3.20)
+          || (request.resource.data.lat >= 35.95 && request.resource.data.lat <= 43.9
+            && request.resource.data.lng >= -9.6 && request.resource.data.lng <= 4.6)
+          || (request.resource.data.lat >= 27.5 && request.resource.data.lat <= 29.5
+            && request.resource.data.lng >= -18.3 && request.resource.data.lng <= -13.3)
+          || (request.resource.data.lat >= 35.85 && request.resource.data.lat <= 35.94
+            && request.resource.data.lng >= -5.4 && request.resource.data.lng <= -5.23)
+          || (request.resource.data.lat >= 35.25 && request.resource.data.lat <= 35.34
+            && request.resource.data.lng >= -2.99 && request.resource.data.lng <= -2.9))
         && request.resource.data.status == "pending"
         && request.resource.data.createdAt == request.time;
       allow update, delete: if admin();
