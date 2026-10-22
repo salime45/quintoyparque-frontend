@@ -18,3 +18,9 @@ dist/
 playwright-report/
 test-results/
 firestore-debug.log
+
+# Fuentes OSM y preparación nacional local (sin credenciales).
+.catalog-data/
+.catalog-python/
+.catalog-venv/
+__pycache__/

@@ -58,6 +58,7 @@ export async function syncCatalog(db, snapshot, { write = false, region = "valen
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.env.CI && process.argv.includes("--write")) throw Error("La importación es manual y local; no se ejecuta en CI");
   const { initializeApp, applicationDefault } = await import("firebase-admin/app");
   const { getFirestore } = await import("firebase-admin/firestore");
   const emulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);

@@ -1,0 +1,6 @@
+[
+  {"id":"peninsula-baleares","url":"https://download.geofabrik.de/europe/spain-latest.osm.pbf"},
+  {"id":"canarias","url":"https://download.geofabrik.de/africa/canary-islands-latest.osm.pbf"},
+  {"id":"ceuta","url":"https://download.geofabrik.de/europe/spain/ceuta-latest.osm.pbf"},
+  {"id":"melilla","url":"https://download.geofabrik.de/europe/spain/melilla-latest.osm.pbf"}
+]

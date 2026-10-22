@@ -1,0 +1,103 @@
+{
+  "generatedAt": "2026-10-20T20:23:47Z",
+  "revision": "8f3dae818d2c17998388d619c5496a3c184d4e933c4692d54d8fcc4c793cfd2f",
+  "license": "ODbL",
+  "documentJsonBytes": 22812787,
+  "sourcePlaces": 163466,
+  "places": 65137,
+  "venues": 46903,
+  "playgrounds": 18235,
+  "sourcePlaygrounds": 38906,
+  "parkMatches": 685,
+  "parkAreas": 193927,
+  "sources": [
+    {
+      "id": "peninsula-baleares",
+      "sourcePlaces": 153647,
+      "incompleteGeometries": 6
+    },
+    {
+      "id": "canarias",
+      "sourcePlaces": 9819,
+      "incompleteGeometries": 0
+    },
+    {
+      "id": "ceuta",
+      "sourcePlaces": 78,
+      "incompleteGeometries": 0
+    },
+    {
+      "id": "melilla",
+      "sourcePlaces": 53,
+      "incompleteGeometries": 0
+    }
+  ],
+  "blocks": 4096,
+  "nonEmptyBlocks": 4096,
+  "estimatedInitialOperations": 73332,
+  "minimumRunsAtConfiguredLimit": 15,
+  "maxWritesPerRun": 5000,
+  "note": "Estimación inicial; incluye progreso por lotes. No representa la cuota disponible del proyecto. Las reanudaciones pueden añadir pequeñas escrituras de control.",
+  "overlappingPlaceTypes": 1,
+  "largestDocumentJsonBytes": 1480,
+  "sampleDocumentsWithinOneKm": {
+    "Madrid": 782,
+    "Valencia": 294,
+    "Barcelona": 554,
+    "Sevilla": 218,
+    "Bilbao": 211,
+    "Palma": 73,
+    "LasPalmas": 45,
+    "Ceuta": 25,
+    "Melilla": 15
+  },
+  "provenance": [
+    {
+      "id": "peninsula-baleares",
+      "url": "https://download.geofabrik.de/europe/spain-latest.osm.pbf",
+      "md5": "c88d642a83f4ffc90fbfc3e47f11b9e5",
+      "bytes": 1494034998
+    },
+    {
+      "id": "canarias",
+      "url": "https://download.geofabrik.de/africa/canary-islands-latest.osm.pbf",
+      "md5": "fa59112afab00d09999e404f8a7c6dac",
+      "bytes": 60034717
+    },
+    {
+      "id": "ceuta",
+      "url": "https://download.geofabrik.de/europe/spain/ceuta-latest.osm.pbf",
+      "md5": "db5de374c11a5e76809227d8b277c5ed",
+      "bytes": 641000
+    },
+    {
+      "id": "melilla",
+      "url": "https://download.geofabrik.de/europe/spain/melilla-latest.osm.pbf",
+      "md5": "13b064003eb7173dfef03a86cb86056c",
+      "bytes": 800319
+    }
+  ],
+  "simulation": {
+    "backend": "memoria local; sin Firestore",
+    "runs": 15,
+    "totalOperations": 73386,
+    "operationsPerRun": [
+      5000,
+      5000,
+      5000,
+      4999,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      4998,
+      5000,
+      5000,
+      5000,
+      5000,
+      3389
+    ],
+    "note": "Simulación del importador real con el paquete nacional. El ritmo, las incidencias y las renovaciones del bloqueo pueden cambiar el total real."
+  }
+}

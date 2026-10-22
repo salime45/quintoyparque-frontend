@@ -84,3 +84,23 @@ test("Una región sin importar permite reintentar sin impedir consultar la otra"
   ready = true;
   assert.equal((await load(boundsAt(40.4168, -3.7038))).covered, true);
 });
+
+test("La selección nacional conserva el catálogo regional hasta que la carga esté completa", async () => {
+  const { createNationalCatalog } = await import("../src/lib/geo-catalog.js");
+  const { withinNationalArea } = await import("../src/lib/catalog-regions.js");
+  let metadataReads = 0, nationalReads = 0;
+  const loader = createNationalCatalog({
+    withinArea: withinNationalArea,
+    legacy: async () => ({ region: "legacy" }),
+    readMetadata: async () => { metadataReads++; return { complete: false }; },
+    readRange: async () => { nationalReads++; return []; },
+  });
+  assert.equal((await loader(boundsAt(39.47, -0.38))).region, "legacy");
+  assert.equal((await loader(boundsAt(40.4168, -3.7038))).region, "legacy");
+  assert.equal(metadataReads, 1);
+  assert.equal(nationalReads, 0);
+  for (const position of [[28.1235, -15.4363], [35.8894, -5.3213], [35.2923, -2.9381]]) {
+    assert.equal(withinNationalArea({ lat: position[0], lng: position[1] }), true);
+  }
+  assert.equal(withinNationalArea({ lat: 48.8566, lng: 2.3522 }), false);
+});

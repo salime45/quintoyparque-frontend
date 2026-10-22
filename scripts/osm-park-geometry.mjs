@@ -47,8 +47,7 @@ function segmentRings(rawSegments) {
   return rings;
 }
 function boundsOf(ring){
-  const xs=ring.map(p=>p[0]),ys=ring.map(p=>p[1]);
-  return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
+  return ring.reduce((box, [x, y]) => [Math.min(box[0], x), Math.min(box[1], y), Math.max(box[2], x), Math.max(box[3], y)], [Infinity, Infinity, -Infinity, -Infinity]);
 }
 function insideBounds(o,b){
   return o.lon>=b[0]&&o.lon<=b[2]&&o.lat>=b[1]&&o.lat<=b[3];
@@ -102,15 +101,34 @@ function insideComponent(o,component){
  * Almacena un vínculo por establecimiento, con la zona infantil más próxima
  * dentro de un recinto válido. El radio de 60 m se aplica aparte en cliente.
  */
+function spatialCandidates(items) {
+  const grid = new Map(), size = 0.05;
+  for (const item of items) {
+    const key = `${Math.floor(item.lon / size)}:${Math.floor(item.lat / size)}`;
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(item);
+  }
+  return ([west, south, east, north]) => {
+    const result = [];
+    for (let x = Math.floor(west / size); x <= Math.floor(east / size); x++) {
+      for (let y = Math.floor(south / size); y <= Math.floor(north / size); y++) {
+        result.push(...(grid.get(`${x}:${y}`) || []));
+      }
+    }
+    return result;
+  };
+}
 export function computeParkMatches(elements,parkAreas){
   const playgrounds=elements.filter(o=>point(o)&&isPlayground(o));
   const venues=elements.filter(o=>point(o)&&isVenue(o));
+  const findPlaygrounds = spatialCandidates(playgrounds);
+  const findVenues = spatialCandidates(venues);
   const chosen=new Map();
   for(const area of parkAreas){
     for(const component of area.components){
-      const play=playgrounds.filter(o=>insideComponent(o,component));
+      const play=findPlaygrounds(component.bounds).filter(o=>insideComponent(o,component));
       if(!play.length)continue;
-      const localVenues=venues.filter(o=>insideComponent(o,component));
+      const localVenues=findVenues(component.bounds).filter(o=>insideComponent(o,component));
       for(const venue of localVenues){
         let closest=null,metres=Infinity;
         for(const playground of play){

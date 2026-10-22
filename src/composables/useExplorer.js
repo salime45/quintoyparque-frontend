@@ -120,7 +120,7 @@ export function useExplorer(mapView, closeMenu) {
         if (usesGeoCatalog) searchRevision.value++;
         status.value =
           usesGeoCatalog
-            ? "Esta zona todavía no está cubierta. Puedes explorar Valencia, Madrid y sus alrededores."
+            ? "Esta zona todavía no está cubierta. Por ahora puedes explorar Valencia, Madrid y sus alrededores."
             : "Esta zona todavía no está cubierta. Por ahora puedes explorar Valencia y alrededores.";
         return;
       }
