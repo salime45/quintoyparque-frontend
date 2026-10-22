@@ -19,6 +19,7 @@ const {
   onlyCafes,
   onlyVerified,
   status,
+  searchNotice,
   loading,
   places,
   published,
@@ -153,25 +154,30 @@ async function selectedPlace(hit) {
         terraza, cruces, seguridad y horarios antes de ir.
       </footer>
     </aside>
-    <MapView
-      ref="mapView"
-      :parks="places.parks"
-      :venues="places.venues"
-      :published="published"
-      :only-parks="onlyParks"
-      :only-cafes="onlyCafes"
-      :verified-only="onlyVerified"
-      :radius="radius"
-      :uid="user?.uid"
-      :revision="reviewRevision"
-      :inert="menuOpen"
-      @ready="refresh"
-      @moved="moved"
-      @review="openReview"
-      @promoted="markReviewed"
-      @map-click="mapClick"
-      @locate="locate"
-    />
+    <div class="map-container">
+      <div class="map-search-notice" role="status" aria-live="polite" aria-atomic="true">
+        <span v-if="searchNotice">{{ searchNotice }}</span>
+      </div>
+      <MapView
+        ref="mapView"
+        :parks="places.parks"
+        :venues="places.venues"
+        :published="published"
+        :only-parks="onlyParks"
+        :only-cafes="onlyCafes"
+        :verified-only="onlyVerified"
+        :radius="radius"
+        :uid="user?.uid"
+        :revision="reviewRevision"
+        :inert="menuOpen"
+        @ready="refresh"
+        @moved="moved"
+        @review="openReview"
+        @promoted="markReviewed"
+        @map-click="mapClick"
+        @locate="locate"
+      />
+    </div>
   </main>
   <ReviewDialog
     :target="reviewTarget"
