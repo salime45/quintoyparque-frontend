@@ -178,7 +178,7 @@ onMounted(() => {
   publishedLayer = L.layerGroup().addTo(map);
   observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
   observer.observe(container.value);
-  if (usesGeoCatalog) map.on("moveend", () => emit("moved"));
+  map.on("moveend", () => emit("moved"));
   map.on("click", (event) => emit("map-click", event.latlng));
   draw();
   emit("ready");

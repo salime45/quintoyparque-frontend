@@ -7,7 +7,7 @@ import {
   onUnmounted,
   nextTick,
 } from "vue";
-import { usesGeoCatalog } from "../lib/geo-catalog.js";
+import { usesGeoCatalog, queryArea } from "../lib/geo-catalog.js";
 import { loadVisiblePairs, getSearchCatalog } from "../services/catalog.js";
 import {
   firebaseAvailable,
@@ -29,6 +29,7 @@ export function useExplorer(mapView, closeMenu) {
     onlyVerified = ref(false);
   const status = ref("Cargando mapa…"),
     loading = ref(false);
+  const searchNotice = ref("");
   const pairs = shallowRef(null),
     reviewedKeys = shallowRef(new Set()),
     published = shallowRef([]);
@@ -93,12 +94,23 @@ export function useExplorer(mapView, closeMenu) {
   async function refresh() {
     if (!mapView.value) return;
     const request = ++sequence;
+    searchNotice.value = "";
     if (mapView.value.getZoom() < 12) {
       loading.value = false;
       if (usesGeoCatalog) pairs.value = null;
-      status.value =
-        "Acerca el mapa para explorar los establecimientos de una zona.";
+      status.value = searchNotice.value =
+        "Acerca el mapa para buscar parques y locales en esta zona.";
       return;
+    }
+    if (usesGeoCatalog) {
+      try {
+        queryArea(mapView.value.getBounds());
+      } catch (error) {
+        loading.value = false;
+        pairs.value = null;
+        status.value = searchNotice.value = error.message;
+        return;
+      }
     }
     loading.value = true;
     status.value = "Cargando parques y locales de esta zona…";
@@ -257,6 +269,7 @@ export function useExplorer(mapView, closeMenu) {
     onlyCafes,
     onlyVerified,
     status,
+    searchNotice,
     loading,
     places,
     published,
