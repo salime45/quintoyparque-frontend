@@ -128,11 +128,11 @@ confirma la tarjeta real ni los permisos de ubicación y acceso Google dentro
 del navegador de WhatsApp. Si se cambia la imagen, utilizar un nuevo nombre
 de archivo y actualizar sus metadatos para evitar reutilizar la imagen anterior.
 
-El flujo habitual es hacer push a `main` y comprobar el workflow **Deploy Firebase Hosting and Firestore**. El workflow instala con `npm ci`, ejecuta las pruebas, compila con `npm run build` y publica `dist/`. La actualización semanal utiliza la misma acción: el catálogo actualizado se copia a `dist/data/` durante la compilación. Si se modifica la extracción geográfica, el workflow de actualización regenera los polígonos y publica el catálogo antes de activar esta versión.
+El flujo habitual es hacer push a `main` y comprobar el workflow **Deploy Firebase Hosting and Firestore**. El workflow instala con `npm ci`, ejecuta las pruebas del frontend, las reglas y las búsquedas geográficas con el emulador, y publica `dist/` generado con `npm run build:geo`. La compilación final consulta Firestore para buscar cerca del mapa. La actualización semanal utiliza la misma acción de despliegue; actualizar el JSON histórico no importa datos a Firestore.
 
 Cada push a `develop` ejecuta el workflow **Deploy develop to qyp-test**: instala las dependencias, prueba el frontend y las reglas en el emulador, compila Vue y comprueba el explorador en escritorio y móvil antes de publicar `dist/` en **https://qyp-test.web.app/**. También se puede ejecutar manualmente seleccionando `develop` en GitHub Actions. Utiliza `firebase.test.json` y el target `test` de `.firebaserc`, asociado exclusivamente al sitio `qyp-test` del proyecto `quintoyparque`. El sitio debe existir en ese proyecto y la cuenta del secreto `FIREBASE_SERVICE_ACCOUNT_QUINTOYPARQUE` debe tener permisos de despliegue en Hosting. Este flujo publica solo Hosting; las reglas de Firestore siguen desplegándose desde `main`. Los dos sitios comparten los servicios Firebase del mismo proyecto.
 
-Para un despliegue excepcional desde tu equipo, tras autenticarte con `firebase login`, ejecuta `bash deploy.sh` (o `.\\deploy.ps1` en Windows). Ambos publican primero las reglas y después Hosting.
+Para un despliegue excepcional desde tu equipo, tras autenticarte con `firebase login`, ejecuta `bash deploy.sh` (o `.\\deploy.ps1` en Windows). Ambos compilan con `npm run build:geo` y publican primero las reglas y después Hosting. El comando de compilación geográfica funciona también en PowerShell.
 
 El archivo `public/data/osm-places.json` debe existir en tu clon del repo. No ejecutes `firebase init`: ya están configurados `firebase.json` y `.firebaserc`.
 
@@ -177,10 +177,11 @@ La cercanía es en línea recta, no tiempo de caminata. Los locales OSM pueden e
 
 ## Cobertura nacional: preparación e importación local
 
-La compilación geográfica de `develop` para qyp-test consulta los lugares cerca
-del mapa mediante geohash. El navegador consulta ubicaciones, no descarga el
-catálogo de España. La compilación ordinaria de producción mantiene el modo JSON
-anterior hasta que se decida activar el piloto allí.
+Los despliegues de `develop` para qyp-test y de `main` para producción usan
+`npm run build:geo` y consultan los lugares cerca del mapa mediante geohash.
+El navegador consulta ubicaciones, no descarga el catálogo de España. Ambos
+sitios leen el catálogo compartido de `osmCatalogTest` en el mismo proyecto
+Firebase. `npm run build` conserva el modo JSON para las pruebas históricas.
 
 Valencia y Madrid conservan sus catálogos ya publicados. La carga nacional se
 prepara y ejecuta **en tu equipo**, por bloques reanudables. El catálogo nacional
@@ -334,4 +335,5 @@ comprueba el transporte REST nacional, las pausas por presupuesto y la activaci�
 final. Después usa datos controlados para probar Valencia, Madrid, Barcelona y
 Canarias en escritorio y móvil, bloqueando conexiones HTTPS externas. Nunca
 escribe datos en Firebase real. Como esa prueba compila contra el emulador,
-`build:geo` vuelve a generar la compilación destinada a qyp-test.
+`build:geo` vuelve a generar la compilación destinada a Hosting (qyp-test o
+producción) sin la dirección del emulador usada por esa prueba.

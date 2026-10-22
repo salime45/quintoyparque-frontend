@@ -56,6 +56,12 @@ runs:
     - name: Test desktop and mobile explorer
       shell: bash
       run: npm run test:e2e
+    - name: Test geographic catalogue with Firestore emulator and browsers
+      shell: bash
+      run: npm run test:geo
+    - name: Build production frontend with geographic catalogue
+      shell: bash
+      run: npm run build:geo
     - name: Authenticate Firebase CLI for Firestore rules
       uses: google-github-actions/auth@v3
       with:
