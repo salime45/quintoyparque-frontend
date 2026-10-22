@@ -87,7 +87,7 @@ test("only logged-in users can submit a pending proposal in Valencia", async () 
   await assertFails(setDoc(doc(user(), "suggestions", "published"), proposal("person-1", { status: "published" })));
   await assertFails(setDoc(doc(user(), "suggestions", "outside"), proposal("person-1", { lat: 60 })));
   await assertSucceeds(setDoc(doc(user(), "suggestions", "madrid"), proposal("person-1", { lat: 40.4168, lng: -3.7038 })));
-  await assertFails(setDoc(doc(user(), "suggestions", "outside-madrid"), proposal("person-1", { lat: 40.4168, lng: -4.5 })));
+  await assertFails(setDoc(doc(user(), "suggestions", "outside-coverage"), proposal("person-1", { lat: 40.4168, lng: -12 })));
 });
 
 test("suggestions are private to administrators", async () => {
@@ -313,4 +313,26 @@ test("el catálogo geográfico de pruebas es público y ningún cliente puede mo
     await assertFails(setDoc(doc(db, "osmCatalogTest/madrid"), { revision: "fake" }));
   }
   await assertFails(getDocs(collection(anonymous(), "osmCatalogTest/barcelona/places")));
+});
+
+test("el catálogo nacional solo se consulta al completar la carga; el progreso es privado", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "osmCatalogTest/espana"), { complete: false });
+    await setDoc(doc(ctx.firestore(), "osmCatalogTest/espana/places/node_8"), { geohash: "ez" });
+    await setDoc(doc(ctx.firestore(), "osmCatalogTest/espana/blocks/000"), { entries: {} });
+  });
+  await assertSucceeds(getDoc(doc(anonymous(), "osmCatalogTest/espana")));
+  await assertFails(getDocs(collection(anonymous(), "osmCatalogTest/espana/places")));
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "osmCatalogTest/espana"), { complete: true });
+  });
+  await assertSucceeds(getDocs(collection(anonymous(), "osmCatalogTest/espana/places")));
+  for (const db of [anonymous(), user(), admin()]) {
+    await assertFails(setDoc(doc(db, "osmCatalogTest/espana/places/node_8"), { geohash: "fake" }));
+    await assertFails(getDoc(doc(db, "osmCatalogTest/espana/blocks/000")));
+    await assertFails(getDoc(doc(db, "osmCatalogTest/espana/imports/control")));
+  }
+  await assertSucceeds(setDoc(doc(user(), "suggestions", "canarias"), proposal("person-1", { lat: 28.1235, lng: -15.4363 })));
+  await assertSucceeds(setDoc(doc(user(), "suggestions", "ceuta"), proposal("person-1", { lat: 35.8894, lng: -5.3213 })));
+  await assertSucceeds(setDoc(doc(user(), "suggestions", "melilla"), proposal("person-1", { lat: 35.2923, lng: -2.9381 })));
 });

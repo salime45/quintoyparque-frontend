@@ -44,7 +44,7 @@ test("La geolocalización carga otra zona automáticamente y el buscador cambia 
 test("Salir de cobertura retira los resultados anteriores", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "geolocation", { configurable: true, value: {
-      getCurrentPosition(success) { success({ coords: { latitude: 41.3874, longitude: 2.1686 } }); },
+      getCurrentPosition(success) { success({ coords: { latitude: 48.8566, longitude: 2.3522 } }); },
     } });
   });
   await page.goto("/");
@@ -91,4 +91,27 @@ test("La ubicación cambia de Valencia a Getafe y vuelve sin mezclar catálogos"
   await openMenu(page);
   await expect(page.locator("#results article")).toContainText("Café de prueba");
   await expect(page.locator("#results")).not.toContainText("Café de Getafe");
+});
+
+
+test("La ubicación encuentra Barcelona y Canarias sin descargar el país completo", async ({ page }) => {
+  await page.addInitScript(() => {
+    let calls = 0;
+    Object.defineProperty(navigator, "geolocation", { configurable: true, value: {
+      getCurrentPosition(success) {
+        const [latitude, longitude] = calls++ === 0 ? [41.3874, 2.1686] : [28.1235, -15.4363];
+        success({ coords: { latitude, longitude } });
+      },
+    } });
+  });
+  await page.goto("/");
+  await openMenu(page);
+  await expect(page.locator("#results article")).toContainText("Café de prueba");
+  await page.locator("#near").click();
+  await openMenu(page);
+  await expect(page.locator("#results article")).toContainText("Café de Barcelona");
+  await page.locator("#near").click();
+  await openMenu(page);
+  await expect(page.locator("#results article")).toContainText("Café de Canarias");
+  await expect(page.locator("#results")).not.toContainText("Café de Barcelona");
 });
