@@ -36,6 +36,25 @@ async function openMenu(page) {
   if (await page.locator("#menuToggle").isVisible())
     await page.locator("#menuToggle").click();
 }
+test("El mapa avisa si falta zoom y retira el aviso al acercarse", async ({ page }) => {
+  await page.goto("/");
+  const notice = page.locator(".map-search-notice span");
+  await page.locator(".leaflet-control-zoom-out").click();
+  await expect(page.locator(".leaflet-map-pane")).toHaveClass(/leaflet-zoom-anim/);
+  await expect(page.locator(".leaflet-map-pane")).not.toHaveClass(/leaflet-zoom-anim/);
+  await page.locator(".leaflet-control-zoom-out").click();
+  await expect(page.locator(".leaflet-map-pane")).toHaveClass(/leaflet-zoom-anim/);
+  await expect(page.locator(".leaflet-map-pane")).not.toHaveClass(/leaflet-zoom-anim/);
+  await openMenu(page);
+  await page.locator("#reload").click();
+  await expect(page.locator("#status")).toContainText("Acerca el mapa");
+  if (await page.locator("#menuClose").isVisible())
+    await page.locator("#menuClose").click();
+  await expect(notice).toBeVisible();
+  await expect(notice).toHaveText("Acerca el mapa para buscar parques y locales en esta zona.");
+  await page.locator(".leaflet-control-zoom-in").click();
+  await expect(notice).toHaveCount(0);
+});
 test("El icono de ubicación centra el mapa y actualiza la zona", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "geolocation", {

@@ -46,6 +46,32 @@ aside {
   height: 100%;
   min-height: 350px;
 }
+.map-container {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+  isolation: isolate;
+}
+.map-search-notice {
+  position: absolute;
+  top: 16px;
+  left: 60px;
+  right: 60px;
+  z-index: 1000;
+  text-align: center;
+  pointer-events: none;
+}
+.map-search-notice span {
+  display: inline-block;
+  max-width: 420px;
+  padding: 12px 16px;
+  border: 1px solid #e2d7b7;
+  border-radius: 10px;
+  background: #fff8df;
+  color: #302b40;
+  box-shadow: 0 2px 12px #302b4026;
+  font-size: 0.9rem;
+}
 .qyp-location-button {
   display: grid;
   place-items: center;
