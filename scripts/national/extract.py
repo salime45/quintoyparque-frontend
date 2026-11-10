@@ -9,12 +9,15 @@ import osmium
 TAGS = [("leisure", value) for value in ("playground", "park", "garden")] + [
     ("amenity", value) for value in ("cafe", "bar", "restaurant", "fast_food")]
 KEYS = ("name", "leisure", "amenity", "outdoor_seating", "wheelchair", "addr:street", "addr:housenumber")
+PHOTO_KEYS = ("image", "wikimedia_commons")
 
 
 def extract(path):
     points, ways, relations = {}, {}, {}
     for obj in osmium.FileProcessor(path).with_filter(osmium.filter.TagFilter(*TAGS)):
         tags = {key: obj.tags[key][:220] for key in KEYS if key in obj.tags}
+        tags.update({key: obj.tags[key] for key in PHOTO_KEYS
+                     if key in obj.tags and len(obj.tags[key]) <= 2048})
         if obj.is_node():
             if obj.location.valid():
                 points[obj.id] = {"type": "node", "id": obj.id, "lat": obj.location.lat, "lon": obj.location.lon, "tags": tags}
