@@ -281,6 +281,41 @@ tiene un plazo de 30 segundos. Si se pierde una respuesta después de guardar un
 lote, su progreso y los documentos ya se han escrito juntos y la siguiente
 ejecución puede continuar. Al completar la carga, recarga la web para renovar sus metadatos.
 
+### Incorporar fotos al catálogo nacional existente
+
+Desplegar la interfaz no modifica los documentos que la web lee de Firestore.
+Para añadir referencias a fotos al catálogo ya importado, conserva su manifiesto,
+sus bloques y los extractos originales en `.catalog-data`, y ejecuta:
+
+```bash
+node scripts/national/prepare-photos.mjs
+node scripts/national/apply-photos.mjs
+```
+
+La preparación hace una pasada por las fuentes locales y conserva únicamente
+referencias compatibles con la tarjeta (`image` y `wikimedia_commons`) de locales
+ya existentes. No modifica nombres, coordenadas, parques ni asociaciones. Genera
+un paquete independiente en `.catalog-data/photo-update/REVISION/` y un informe
+con el número de locales y las escrituras estimadas, sin consultar Firestore.
+
+Con credenciales ADC autorizadas para el proyecto `quintoyparque`, aplica el
+paquete mediante:
+
+```bash
+node scripts/national/apply-photos.mjs --write --max-writes=500
+```
+
+El comando comprueba que el catálogo activo corresponde a la revisión de origen,
+reutiliza los bloqueos y el progreso del importador y admite reanudación con el
+mismo comando. El límite incluye las escrituras de control e índices; no indica
+la cuota restante del proyecto. Rechaza catálogos de origen distintos y no ejecuta
+la carga en CI. La cobertura depende de las fotos enlazadas en OSM y de que el
+servidor de cada imagen siga disponible. Recarga la web al terminar la carga.
+
+El [informe de preparación de fotos](reports/fotos-catalogo-nacional.json) recoge
+47 locales y 144 escrituras estimadas para el extracto del 20 de octubre de 2026.
+Es un informe local; no certifica que se haya aplicado la carga en Firestore.
+
 ### Comparación por bloques y consultas de la web
 
 Los documentos nacionales están en `osmCatalogTest/espana/places`; la raíz
