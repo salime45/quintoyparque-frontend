@@ -1,0 +1,22 @@
+{
+  "status": "prepared_not_imported",
+  "reason": "El entorno no dispone de credenciales ADC para escribir en Firestore.",
+  "originalRevision": "8f3dae818d2c17998388d619c5496a3c184d4e933c4692d54d8fcc4c793cfd2f",
+  "revision": "2c7aa913bf15471511344fb918c0b63a09f32651433b56bb11c64e464b1c69ac",
+  "sourceGeneratedAt": "2026-10-20T20:23:47Z",
+  "venuesWithPhotos": 47,
+  "modifiedVenues": 47,
+  "changedBlocks": 46,
+  "estimatedWrites": 144,
+  "configuredMaxWrites": 500,
+  "browserValidation": {
+    "environment": "local_prepared_catalogue",
+    "venueId": "node/11547194728",
+    "venueName": "La Tasqueta del Mercat",
+    "imageLoaded": true,
+    "imageWidth": 960,
+    "imageHeight": 540
+  },
+  "applyCommand": "node scripts/national/apply-photos.mjs --write --max-writes=500",
+  "note": "Las escrituras son una estimación que incluye índices y control; no indican la cuota restante. La comprobación local no certifica una imagen en el catálogo desplegado."
+}
