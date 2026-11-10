@@ -412,6 +412,23 @@ footer { padding-top: 13px; border-top: 1px solid var(--qyp-border); }
   font-size: 13px;
   line-height: 1.5;
 }
+.venue-popup__photo {
+  margin: 18px 0 14px;
+}
+.venue-popup__photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #F3F0F7;
+}
+.venue-popup__photo figcaption {
+  margin-top: 5px;
+  font-size: 11px;
+  text-align: right;
+}
 .venue-popup__header {
   display: flex;
   align-items: center;

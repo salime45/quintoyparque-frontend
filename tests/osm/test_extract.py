@@ -7,6 +7,8 @@ class ExtractTests(unittest.TestCase):
         places = {(item["type"], item["id"]): item for item in data["elements"]}
         self.assertIn(("node", 5), places)
         self.assertEqual(places[("node", 6)]["tags"]["name"], "Café de prueba")
+        self.assertEqual(places[("node", 6)]["tags"]["image"], "https://example.org/local.jpg")
+        self.assertEqual(places[("node", 6)]["tags"]["wikimedia_commons"], "File:Café de prueba.jpg")
         self.assertAlmostEqual(places[("way", 11)]["lon"], -0.375)
         areas = {(item["type"], item["id"]): item for item in data["boundaries"]}
         self.assertEqual(len(areas[("way", 10)]["geometry"]), 5)

@@ -4,8 +4,12 @@ import { safeLabel, reviewDate } from "../lib/places.js";
 import { stars } from "../lib/reviews.mjs";
 import { loadVenueReviews, promoteOlderReview } from "../services/firebase.js";
 import ReviewFlags from "./ReviewFlags.vue";
+import { venuePhoto } from "../lib/venue-photo.js";
 const props = defineProps({ venue: Object, uid: String, revision: Number });
 const emit = defineEmits(["review", "promoted"]);
+const photo = computed(() => venuePhoto(props.venue));
+const photoFailed = ref(false);
+watch(() => [props.venue.id, photo.value?.src], () => { photoFailed.value = false; });
 const reviews = ref([]),
   message = ref("Cargando opiniones…");
 const average = computed(
@@ -46,6 +50,15 @@ onUnmounted(() => sequence++);
 </script>
 <template>
   <section class="venue-popup">
+    <figure v-if="photo && !photoFailed" class="venue-popup__photo">
+      <a :href="photo.source" target="_blank" rel="noopener noreferrer"
+        :aria-label="'Ver foto de ' + safeLabel(venue) + ' (se abre en otra pestaña)'">
+        <img :key="venue.id + photo.src" :src="photo.src" :alt="'Foto de ' + safeLabel(venue)"
+          width="640" height="360" decoding="async" referrerpolicy="no-referrer"
+          @error="photoFailed = true" />
+      </a>
+      <figcaption><a :href="photo.source" target="_blank" rel="noopener noreferrer">{{ photo.label }}</a></figcaption>
+    </figure>
     <div class="venue-popup__header">
       <span class="venue-popup__brand" aria-hidden="true"
         ><img src="/brand/beer-marker.svg" alt="" width="23" height="30"
