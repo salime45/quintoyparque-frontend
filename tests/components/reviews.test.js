@@ -38,6 +38,20 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 describe("Reseñas con estado reactivo", () => {
+  it("Muestra la foto y su fuente, la oculta si falla y la recupera al cambiar de local", async () => {
+    service.loadVenueReviews.mockResolvedValue([]);
+    const withPhoto = { ...venue, tags: { ...venue.tags, image: "https://example.org/local.jpg" } };
+    const wrapper = create(VenuePopup, { venue: withPhoto, revision: 0 });
+    expect(wrapper.get(".venue-popup__photo img").attributes("alt")).toBe("Foto de Bar de prueba");
+    expect(wrapper.get(".venue-popup__photo figcaption a").attributes("href")).toBe(withPhoto.tags.image);
+    await wrapper.get(".venue-popup__photo img").trigger("error");
+    expect(wrapper.find(".venue-popup__photo").exists()).toBe(false);
+    expect(wrapper.get(".venue-popup__title").text()).toBe("Bar de prueba");
+    await wrapper.setProps({ venue: { ...withPhoto, id: "node/3" } });
+    expect(wrapper.find(".venue-popup__photo").exists()).toBe(true);
+    await wrapper.setProps({ venue });
+    expect(wrapper.find(".venue-popup__photo").exists()).toBe(false);
+  });
   it("Solicita sesión y carga el formulario cuando el usuario entra", async () => {
     service.loadMyReview.mockResolvedValue(null);
     const wrapper = create(ReviewDialog, { target, user: null });

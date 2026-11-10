@@ -46,8 +46,12 @@ function normalize(el) {
   if (!isPark && !isVenue) return null;
 
   const cleanTags = {};
-  for (const key of ["name", "leisure", "amenity", "outdoor_seating", "wheelchair", "addr:street", "addr:housenumber"]) {
-    if (typeof tags[key] === "string") cleanTags[key] = tags[key].slice(0, 220);
+  for (const key of ["name", "leisure", "amenity", "outdoor_seating", "wheelchair", "addr:street", "addr:housenumber", "image", "wikimedia_commons"]) {
+    if (typeof tags[key] === "string") {
+      const limit = ["image", "wikimedia_commons"].includes(key) ? 2048 : 220;
+      if (tags[key].length <= limit) cleanTags[key] = tags[key];
+      else if (limit === 220) cleanTags[key] = tags[key].slice(0, limit);
+    }
   }
   return { id: el.type + "/" + el.id, lat, lon, tags: cleanTags };
 }

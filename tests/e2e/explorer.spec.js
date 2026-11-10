@@ -144,6 +144,32 @@ test("La búsqueda por teclado centra el mapa y abre una ficha", async ({
   await page.locator("#reviewClose").click();
   await expect(page.locator("#reviewModal")).not.toBeVisible();
 });
+test("La ficha muestra la foto del local y mantiene accesible el botón de reseña", async ({ page }) => {
+  const image = "https://example.org/local.jpg";
+  await page.route("**/data/osm-places.json", (route) => route.fulfill({
+    json: {
+      ...catalog,
+      elements: catalog.elements.map((place) => place.id === "node/2"
+        ? { ...place, tags: { ...place.tags, image } } : place),
+    },
+  }));
+  await page.route(image, (route) => route.fulfill({
+    contentType: "image/svg+xml",
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#4B4466"/></svg>',
+  }));
+  await page.goto("/");
+  await openMenu(page);
+  await page.locator("#placeSearch").fill("cafe prueba");
+  await page.locator("#placeSearchResults button").click();
+  const photo = page.locator(".venue-popup__photo img");
+  await expect(photo).toBeVisible();
+  await expect(photo).toHaveJSProperty("naturalWidth", 640);
+  await expect(page.locator(".venue-popup__photo figcaption a")).toHaveAttribute("href", image);
+  const popup = page.locator(".leaflet-popup-content");
+  expect(await popup.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  await page.locator(".popup-review-btn").click();
+  await expect(page.locator("#reviewModal")).toBeVisible();
+});
 test("El menú móvil conserva foco, Escape, fondo y cambio a escritorio", async ({
   page,
 }, testInfo) => {
