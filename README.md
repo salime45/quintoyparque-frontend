@@ -4,6 +4,11 @@ Aplicación Vue 3 + Vite, con Leaflet y Firebase, para encontrar cafeterías, ba
 
 ## Estructura y desarrollo
 
+Para evaluar el objetivo de fotos en el 90 % de locales, consulta el
+[piloto local de Places UI Kit](scripts/photo-pilot/README.md). Incluye una muestra
+de 300 locales, revisión visual, consultas limitadas e informe de cobertura y
+coste. No modifica Firestore ni la aplicación desplegada.
+
 - `index.html`: entrada de Vite y metadatos para buscadores y enlaces compartidos.
 - `src/App.vue` y `src/components/`: cabecera, buscador, filtros, resultados, mapa, fichas y diálogos de propuestas y reseñas.
 - `src/composables/`: estado reactivo del explorador, sesión y comportamiento accesible del menú móvil.
