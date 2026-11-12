@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Piloto de fotos · Quinto y Parque</title><link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script></head>
+<body><main>
+  <header><p class="eyebrow">QUINTO Y PARQUE · PRUEBA LOCAL</p><h1>¿Tenemos foto del local correcto?</h1>
+    <p>Revisa una muestra de 300 locales. Confirma el nombre y la dirección, selecciona el establecimiento en los resultados y comprueba que su foto real carga. Un logotipo, un icono o una imagen de otro negocio no cuentan.</p></header>
+  <div class="summary" id="summary" aria-live="polite"></div>
+  <nav aria-label="Navegar por la muestra"><label for="venue">Local</label><select id="venue"></select><button id="next">Siguiente pendiente</button><a href="/api/report" download>Descargar informe</a></nav>
+  <section class="card"><p id="area" class="eyebrow"></p><h2 id="name"></h2><p id="address"></p><p><a id="osm" target="_blank" rel="noopener noreferrer">Consultar el local en OpenStreetMap</a></p>
+    <button id="search" disabled>Consultar fotos</button><p id="status" role="status">Preparando el piloto…</p>
+    <div id="results" aria-label="Resultados oficiales de Google"></div>
+    <p id="selected"></p>
+    <fieldset id="verdicts" disabled><legend>Resultado de la revisión</legend>
+      <button data-verdict="foto_correcta" id="correct" disabled>Local correcto y foto real visible</button>
+      <button data-verdict="sin_foto">Local correcto, sin foto real</button>
+      <button data-verdict="local_incorrecto">No aparece el local correcto</button>
+      <button data-verdict="dudoso">No puedo confirmar la identidad o la foto</button>
+      <button data-verdict="error">Error al consultar o cargar</button>
+    </fieldset>
+  </section>
+  <footer><p>Fuente de la muestra: © colaboradores de OpenStreetMap, ODbL. Selección exploratoria de 150 locales en entornos de ciudades y 150 en entornos de pueblos; no es una estimación nacional representativa.</p>
+    <p>Las imágenes se muestran mediante Places UI Kit con sus atribuciones. Se guarda solo tu evaluación y el identificador del lugar, sin copiar fotos ni respuestas de Google a Firestore.</p>
+    <p id="cost"></p><p>El límite cuenta consultas iniciadas por este piloto; no limita los posibles reintentos internos del proveedor ni sustituye las cuotas de Google Cloud. El informe distingue revisados y pendientes.</p></footer>
+</main></body></html>

@@ -20,7 +20,9 @@
     "catalog:es:prepare": "node --max-old-space-size=3072 scripts/national/prepare.mjs",
     "catalog:es:report": "node scripts/national/cli.mjs",
     "catalog:es:import": "node scripts/national/cli.mjs --write",
-    "test:osm": "node scripts/national/test-parser.mjs"
+    "test:osm": "node scripts/national/test-parser.mjs",
+    "photos:pilot": "node scripts/photo-pilot.mjs",
+    "photos:sample": "node scripts/photo-pilot/make-sample.mjs"
   },
   "engines": {
     "node": ">=22.12.0"
