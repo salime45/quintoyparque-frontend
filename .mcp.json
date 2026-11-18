@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "firebase": {
+      "command": "node",
+      "args": ["node_modules/firebase-tools/lib/bin/firebase.js", "mcp", "--only", "firestore"]
+    }
+  }
+}

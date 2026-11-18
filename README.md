@@ -4,6 +4,10 @@ Aplicación Vue 3 + Vite, con Leaflet y Firebase, para encontrar cafeterías, ba
 
 ## Estructura y desarrollo
 
+Para añadir locales a mano mediante un agente, consulta el
+[flujo de altas manuales y MCP de Firebase](docs/altas-manuales.md). Incluye vista
+previa, detección de posibles duplicados y publicación separada del catálogo OSM.
+
 - `index.html`: entrada de Vite y metadatos para buscadores y enlaces compartidos.
 - `src/App.vue` y `src/components/`: cabecera, buscador, filtros, resultados, mapa, fichas y diálogos de propuestas y reseñas.
 - `src/composables/`: estado reactivo del explorador, sesión y comportamiento accesible del menú móvil.
