@@ -122,7 +122,7 @@ function draw() {
   }
   for (const place of props.published) {
     const marker = L.marker([place.lat, place.lng], {
-      icon: verifiedIcon,
+      icon: place.origin === "manual" ? venueIcon : verifiedIcon,
       title: place.name || "Local publicado",
     }).bindPopup(
       textPopup(
